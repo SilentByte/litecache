@@ -1,0 +1,4 @@
+vendor/
+.litecache/
+*.test.php
+*.sublime-workspace

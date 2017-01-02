@@ -1,0 +1,19 @@
+{
+    "name": "silentbyte/litecache",
+    "description": "A lightweight, easy-to-use, and straightforward caching library for PHP.",
+    "keywords": ["cache", "caching", "OPCache", "config"],
+    "homepage": "https://github.com/SilentByte/litecache",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Rico Beti",
+            "email": "rico.beti@silentbyte.com",
+            "homepage": "https://silentbyte.com/"
+        }
+    ],
+    "autoload": {
+        "psr-4": {"SilentByte\\LiteCache\\": "src/SilentByte/LiteCache"}
+    },
+    "require": {}
+}
