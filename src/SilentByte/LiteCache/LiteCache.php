@@ -15,6 +15,10 @@ class LiteCache
 
     private $directory;
 
+    private static function escapeComment($text) {
+        return str_replace(['*/', "\r", "\n"], ['* /', ' ', ' '], $text);
+    }
+
     public function __construct(array $config) {
         $config = array_merge(self::DEFAULT_CONFIG, $config);
 
@@ -33,7 +37,7 @@ class LiteCache
     private function cacheObject(string $name, $object) {
         $cacheFileName = $this->getCacheFileName($name);
 
-        $data = '<?php' . PHP_EOL .
+        $data = '<?php /* ' . self::escapeComment($name) . ' ' . date('c') . ' */' . PHP_EOL .
                 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL .
                 'return [' . var_export($object, true) . '];';
 
