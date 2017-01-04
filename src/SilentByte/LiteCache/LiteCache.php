@@ -8,6 +8,7 @@
 namespace SilentByte\LiteCache;
 
 use SplFileInfo;
+use UnexpectedValueException;
 
 class LiteCache
 {
@@ -40,11 +41,13 @@ class LiteCache
     }
 
     private function hasExpired(int $timestamp, $expiration) : bool {
-        if($expiration === null)
+        if($expiration === null) {
             $expiration = $this->expiration;
+        }
 
-        if($expiration < 0)
+        if($expiration < 0) {
             return false;
+        }
 
         return time() > $timestamp + $expiration;
     }
@@ -76,8 +79,11 @@ class LiteCache
     }
 
     public function get(string $name, callable $producer, $expiration = null) {
-        $cacheFileName = $this->getCacheFileName($name);
+        if(empty($name)) {
+            throw new UnexpectedValueException('Cache object name must not be null or empty.');
+        }
 
+        $cacheFileName = $this->getCacheFileName($name);
         $file = new SplFileInfo($cacheFileName);
 
         // Load from cache if cache file exists and has not expired yet.
@@ -88,6 +94,13 @@ class LiteCache
         $object = $producer();
         $this->cacheObject($name, $object);
         return $object;
+    }
+
+    public function delete(string $name) {
+        $cacheFileName = $this->getCacheFileName($name);
+        if(file_exists($cacheFileName)) {
+            unlink($cacheFileName);
+        }
     }
 }
 
