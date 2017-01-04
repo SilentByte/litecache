@@ -97,9 +97,13 @@ class LiteCache
         return $object;
     }
 
-    public function delete(string $name) {
+    public function has(string $name) {
         $cacheFileName = $this->getCacheFileName($name);
-        if(file_exists($cacheFileName)) {
+        return file_exists($cacheFileName);
+    }
+
+    public function delete(string $name) {
+        if($this->has($name)) {
             unlink($cacheFileName);
         }
     }
