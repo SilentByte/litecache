@@ -7,10 +7,13 @@
 
 namespace SilentByte\LiteCache;
 
+use SplFileInfo;
+
 class LiteCache
 {
     const DEFAULT_CONFIG = [
-        'directory' => '.litecache'
+        'directory' => '.litecache',
+        'expiration' => -1
     ];
 
     private $directory;
@@ -23,6 +26,8 @@ class LiteCache
         $config = array_merge(self::DEFAULT_CONFIG, $config);
 
         $this->directory = PathHelper::directory($config['directory']);
+        $this->expiration = (int)$config['expiration'];
+
         PathHelper::makeDirectory($this->directory, 0766);
     }
 
@@ -32,6 +37,16 @@ class LiteCache
                                              $hash . '.php');
 
         return $cacheFileName;
+    }
+
+    private function hasExpired(int $timestamp, $expiration) : bool {
+        if($expiration === null)
+            $expiration = $this->expiration;
+
+        if($expiration < 0)
+            return false;
+
+        return time() > $timestamp + $expiration;
     }
 
     private function cacheObject(string $name, $object) {
@@ -60,9 +75,13 @@ class LiteCache
         return $value[0];
     }
 
-    public function get($name, callable $producer) {
+    public function get(string $name, callable $producer, $expiration = null) {
         $cacheFileName = $this->getCacheFileName($name);
-        if(file_exists($cacheFileName)) {
+
+        $file = new SplFileInfo($cacheFileName);
+
+        // Load from cache if cache file exists and has not expired yet.
+        if($file->isFile() && !$this->hasExpired($file->getMTime(), $expiration)) {
             return $this->loadCachedObject($name, $cacheFileName);
         }
 
