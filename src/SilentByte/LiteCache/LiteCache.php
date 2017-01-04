@@ -7,6 +7,7 @@
 
 namespace SilentByte\LiteCache;
 
+use DirectoryIterator;
 use SplFileInfo;
 use UnexpectedValueException;
 
@@ -100,6 +101,15 @@ class LiteCache
         $cacheFileName = $this->getCacheFileName($name);
         if(file_exists($cacheFileName)) {
             unlink($cacheFileName);
+        }
+    }
+
+    public function clear() {
+        $iterator = new DirectoryIterator($this->directory);
+        foreach($iterator as $file) {
+            if(!$file->isDot()) {
+                unlink($file->getPathname());
+            }
         }
     }
 }
