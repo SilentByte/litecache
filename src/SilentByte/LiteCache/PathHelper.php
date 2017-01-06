@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 /**
  * SilentByte LiteCache Library
  * @copyright 2017 SilentByte <https://silentbyte.com/>
@@ -11,25 +11,29 @@ use RuntimeException;
 
 class PathHelper
 {
-    private function __construct() {
+    private function __construct()
+    {
         // Static Class.
     }
 
-    public static function directory(string $path) : string {
+    public static function directory(string $path) : string
+    {
         return rtrim($path, '/');
     }
 
-    public static function combine(string ...$paths) : string {
+    public static function combine(string ...$paths) : string
+    {
         return implode(DIRECTORY_SEPARATOR, $paths);
     }
 
-    public static function makeDirectory(string $path, int $permissions) {
+    public static function makeDirectory(string $path, int $permissions)
+    {
         // Nothing to do if directory already exists.
-        if(is_dir($path)) {
+        if (is_dir($path)) {
             return;
         }
 
-        if(!mkdir($path, $permissions, true)) {
+        if (!mkdir($path, $permissions, true)) {
             throw new RuntimeException("Directory '{$path}' could not be created.");
         }
     }

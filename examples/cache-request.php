@@ -1,7 +1,6 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 
 require_once '../vendor/autoload.php';
-
 
 // Create the cache object with a customized configuration.
 $cache = new \SilentByte\LiteCache\LiteCache([
@@ -15,7 +14,7 @@ $cache = new \SilentByte\LiteCache\LiteCache([
 // Issue a Github API request and cache it under the specified name ('git-request').
 // Subsequent calls to $cache->get() will be fetched from cache;
 // after expiration, a new request will be issued.
-$response = $cache->get('git-request', function() {
+$response = $cache->get('git-request', function () {
     $ch = curl_init('https://api.github.com/users/SilentByte');
     curl_setopt($ch, CURLOPT_USERAGENT, 'SilentByte/litecache');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

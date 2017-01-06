@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 /**
  * SilentByte LiteCache Library
  * @copyright 2017 SilentByte <https://silentbyte.com/>
@@ -20,11 +20,13 @@ class LiteCache
 
     private $directory;
 
-    private static function escapeComment($text) {
+    private static function escapeComment($text)
+    {
         return str_replace(['*/', "\r", "\n"], ['* /', ' ', ' '], $text);
     }
 
-    public function __construct(array $config) {
+    public function __construct(array $config)
+    {
         $config = array_merge(self::DEFAULT_CONFIG, $config);
 
         $this->directory = PathHelper::directory($config['directory']);
@@ -33,43 +35,47 @@ class LiteCache
         PathHelper::makeDirectory($this->directory, 0766);
     }
 
-    private function getCacheFileName(string $name) {
+    private function getCacheFileName(string $name)
+    {
         $hash = md5($name);
         $cacheFileName = PathHelper::combine($this->directory,
-                                             $hash . '.php');
+            $hash . '.php');
 
         return $cacheFileName;
     }
 
-    private function hasExpired(int $timestamp, $expiration) : bool {
-        if($expiration === null) {
+    private function hasExpired(int $timestamp, $expiration) : bool
+    {
+        if ($expiration === null) {
             $expiration = $this->expiration;
         }
 
-        if($expiration < 0) {
+        if ($expiration < 0) {
             return false;
         }
 
         return time() > $timestamp + $expiration;
     }
 
-    private function cacheObject(string $name, $object) {
+    private function cacheObject(string $name, $object)
+    {
         $cacheFileName = $this->getCacheFileName($name);
 
         $data = '<?php /* ' . self::escapeComment($name) . ' ' . date('c') . ' */' . PHP_EOL .
-                'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL .
-                'return [' . var_export($object, true) . '];';
+            'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL .
+            'return [' . var_export($object, true) . '];';
 
-        if(@file_put_contents($cacheFileName, $data) === false) {
+        if (@file_put_contents($cacheFileName, $data) === false) {
             throw new CacheException($name, $cacheFileName,
                 'Cache file could not be written.');
         }
     }
 
-    private function loadCachedObject(string $name, string $cacheFileName) {
+    private function loadCachedObject(string $name, string $cacheFileName)
+    {
         $value = include($cacheFileName);
 
-        if(!$value) {
+        if (!$value) {
             throw new CacheException($name, $cacheFileName,
                 'Cached object could not be loaded.');
         }
@@ -79,8 +85,9 @@ class LiteCache
         return $value[0];
     }
 
-    public function get(string $name, callable $producer, $expiration = null) {
-        if(empty($name)) {
+    public function get(string $name, callable $producer, $expiration = null)
+    {
+        if (empty($name)) {
             throw new UnexpectedValueException('Cache object name must not be null or empty.');
         }
 
@@ -88,7 +95,7 @@ class LiteCache
         $file = new SplFileInfo($cacheFileName);
 
         // Load from cache if cache file exists and has not expired yet.
-        if($file->isFile() && !$this->hasExpired($file->getMTime(), $expiration)) {
+        if ($file->isFile() && !$this->hasExpired($file->getMTime(), $expiration)) {
             return $this->loadCachedObject($name, $cacheFileName);
         }
 
@@ -97,21 +104,24 @@ class LiteCache
         return $object;
     }
 
-    public function has(string $name) {
+    public function has(string $name)
+    {
         $cacheFileName = $this->getCacheFileName($name);
         return file_exists($cacheFileName);
     }
 
-    public function delete(string $name) {
-        if($this->has($name)) {
+    public function delete(string $name)
+    {
+        if ($this->has($name)) {
             unlink($cacheFileName);
         }
     }
 
-    public function clear() {
+    public function clear()
+    {
         $iterator = new DirectoryIterator($this->directory);
-        foreach($iterator as $file) {
-            if(!$file->isDot()) {
+        foreach ($iterator as $file) {
+            if (!$file->isDot()) {
                 unlink($file->getPathname());
             }
         }

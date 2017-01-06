@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 /**
  * SilentByte LiteCache Library
  * @copyright 2017 SilentByte <https://silentbyte.com/>
@@ -13,21 +13,24 @@ class IniProducer
 {
     private $filename;
 
-    public function __construct(string $filename) {
+    public function __construct(string $filename)
+    {
         $this->filename = $filename;
     }
 
-    public function __invoke() {
+    public function __invoke()
+    {
         $config = @parse_ini_file($this->filename, true);
 
-        if($config === null) {
+        if ($config === null) {
             throw new RuntimeException("Could not load configuration file '{$this->filename}'.");
         }
 
         return $config;
     }
 
-    public function getFileName() : string {
+    public function getFileName() : string
+    {
         return $this->filename;
     }
 }

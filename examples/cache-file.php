@@ -1,10 +1,9 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 
 require_once '../vendor/autoload.php';
 
-
-use SilentByte\LiteCache\LiteCache;
 use SilentByte\LiteCache\FileProducer;
+use SilentByte\LiteCache\LiteCache;
 
 // Create the cache object with a customized configuration.
 $cache = new LiteCache([

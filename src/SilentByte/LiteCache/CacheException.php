@@ -1,4 +1,4 @@
-<?php declare(strict_types=1);
+<?php declare(strict_types = 1);
 /**
  * SilentByte LiteCache Library
  * @copyright 2017 SilentByte <https://silentbyte.com/>
@@ -25,11 +25,13 @@ class CacheException extends Exception
         parent::__construct($message, 0, $previous);
     }
 
-    public function getName() : string {
+    public function getName() : string
+    {
         return $this->name;
     }
 
-    public function getCache() : string {
+    public function getCache() : string
+    {
         return $this->cache;
     }
 }
