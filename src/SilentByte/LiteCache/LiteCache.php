@@ -14,10 +14,10 @@ use UnexpectedValueException;
 class LiteCache
 {
     const EXPIRE_NEVER = -1;
-    const EXPIRE_IMMEDIATELY  = 0;
+    const EXPIRE_IMMEDIATELY = 0;
 
     const DEFAULT_CONFIG = [
-        'directory' => '.litecache',
+        'directory'  => '.litecache',
         'expiration' => -1
     ];
 
@@ -25,7 +25,9 @@ class LiteCache
 
     private static function escapeComment($text)
     {
-        return str_replace(['*/', "\r", "\n"], ['* /', ' ', ' '], $text);
+        return str_replace(['*/', "\r", "\n"],
+                           ['* /', ' ', ' '],
+                           $text);
     }
 
     public function __construct(array $config)
@@ -42,7 +44,7 @@ class LiteCache
     {
         $hash = md5($name);
         $cacheFileName = PathHelper::combine($this->directory,
-            $hash . '.php');
+                                             $hash . '.php');
 
         return $cacheFileName;
     }
@@ -64,13 +66,13 @@ class LiteCache
     {
         $cacheFileName = $this->getCacheFileName($name);
 
-        $data = '<?php /* ' . self::escapeComment($name) . ' ' . date('c') . ' */' . PHP_EOL .
-            'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL .
-            'return [' . var_export($object, true) . '];';
+        $data = '<?php /* ' . self::escapeComment($name) . ' ' . date('c') . ' */' . PHP_EOL
+            . 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL
+            . 'return [' . var_export($object, true) . '];';
 
         if (@file_put_contents($cacheFileName, $data) === false) {
             throw new CacheException($name, $cacheFileName,
-                'Cache file could not be written.');
+                                     'Cache file could not be written.');
         }
     }
 
@@ -80,7 +82,7 @@ class LiteCache
 
         if (!$value) {
             throw new CacheException($name, $cacheFileName,
-                'Cached object could not be loaded.');
+                                     'Cached object could not be loaded.');
         }
 
         // Actual value is wrapped in an array in order to distinguish

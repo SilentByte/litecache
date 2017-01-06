@@ -28,8 +28,8 @@ class JsonProducer
 
         $json = json_decode($content);
         if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException("Could not parse JSON file '{$this->filename}': "
-                . 'Reason: ' . json_last_error_msg());
+            throw new RuntimeException("Could not parse JSON file '{$this->filename}': " .
+                                       'Reason: ' . json_last_error_msg());
         }
 
         return $json;
