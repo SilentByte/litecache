@@ -1,4 +1,8 @@
 vendor/
 .litecache/
+
 *.test.php
 *.sublime-workspace
+
+.idea/workspace.xml
+.idea/tasks.xml
