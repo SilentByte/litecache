@@ -53,9 +53,57 @@ echo "Name: ", $response->login, "\n",
 ```
 
 
+### Using Producers
+LiteCache uses producers (implemented as function objects) to load and prepare the data for storage in the cache. A couple of useful producers are already shipped with LiteCache, namely: `FileProducer`, `IniProducer`, and `JsonProducer`.
+
+Using the `IniProducer` with the following configuration...
+
+```ini
+[server]
+host = myhost.test.com
+user = root
+password = root
+```
+
+...and this code...
+
+```php
+<?php declare(strict_types=1);
+
+require_once '../vendor/autoload.php';
+
+
+use SilentByte\LiteCache\LiteCache;
+use SilentByte\LiteCache\IniProducer;
+
+// Create the cache object with a customized configuration.
+$cache = new LiteCache([
+    // Specify the caching directory.
+    'directory' => '.litecache',
+
+    // Cache objects permanently.
+    'expiration' => -1
+]);
+
+// Load the specified INI configuration file and cache it.
+$config = $cache->get('ini-cache', new IniProducer('./sample_data/test_ini.ini'));
+
+echo "Host: ", $config['server']['host'], "\n",
+     "User: ", $config['server']['user'], "\n",
+     "Password: ", $config['server']['password'], "\n";
+```
+
+...will result in the configuration file being cached for all further calls of the script, thus avoiding unnecessary parsing on every request. The same concept applies to the other types or producers.
+
+See the `examples/` folder for more information.
+
+
+
 ## FAQ
 
 ### Under what license is LiteCache released?
 MIT license. Check out `license.txt` for details. More information regarding the MIT license can be found here: <https://opensource.org/licenses/MIT>
 
+### How do I permanently cache static files, i.e. configuration files?
+Setting the `expiration` configuration value to `-1` will cause objects to remain in the cache until the cache file is manually deleted. This is the recommended option for configuration files.
 
