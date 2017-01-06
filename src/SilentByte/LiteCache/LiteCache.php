@@ -121,7 +121,7 @@ class LiteCache
     {
         $iterator = new DirectoryIterator($this->directory);
         foreach ($iterator as $file) {
-            if (!$file->isDot()) {
+            if (!$file->isDot() && $file->getExtension() === 'php') {
                 unlink($file->getPathname());
             }
         }
