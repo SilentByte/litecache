@@ -113,7 +113,7 @@ class LiteCache
     public function delete(string $name)
     {
         if ($this->has($name)) {
-            unlink($cacheFileName);
+            unlink($this->getCacheFileName($name));
         }
     }
 
