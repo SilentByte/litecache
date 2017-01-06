@@ -14,11 +14,15 @@ class CacheException extends Exception
     private $name;
     private $cache;
 
-    public function __construct(string $name, string $cache, string $message) {
+    public function __construct(string $name,
+                                string $cache,
+                                string $message,
+                                Exception $previous = null)
+    {
         $this->name = $name;
         $this->cache = $cache;
 
-        parent::__construct($message, 0, null);
+        parent::__construct($message, 0, $previous);
     }
 
     public function getName() : string {
