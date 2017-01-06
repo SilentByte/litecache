@@ -13,6 +13,9 @@ use UnexpectedValueException;
 
 class LiteCache
 {
+    const EXPIRE_NEVER = -1;
+    const EXPIRE_IMMEDIATELY  = 0;
+
     const DEFAULT_CONFIG = [
         'directory' => '.litecache',
         'expiration' => -1
