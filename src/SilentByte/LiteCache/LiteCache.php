@@ -1,9 +1,12 @@
-<?php declare(strict_types = 1);
+<?php
 /**
  * SilentByte LiteCache Library
+ *
  * @copyright 2017 SilentByte <https://silentbyte.com/>
- * @license https://opensource.org/licenses/MIT MIT
+ * @license   https://opensource.org/licenses/MIT MIT
  */
+
+declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
@@ -13,9 +16,21 @@ use UnexpectedValueException;
 
 class LiteCache
 {
+    /**
+     * Indicates that objects cached with this setting will never expire
+     * and must thus be deleted manually to trigger an update.
+     */
     const EXPIRE_NEVER = -1;
+
+    /**
+     * Indicates that objects cached with this setting expire immediately.
+     * This setting can also be used to manually trigger an update.
+     */
     const EXPIRE_IMMEDIATELY = 0;
 
+    /**
+     * Specifies the default configuration.
+     */
     const DEFAULT_CONFIG = [
         'directory'  => '.litecache',
         'expiration' => -1
@@ -23,13 +38,20 @@ class LiteCache
 
     private $directory;
 
-    private static function escapeComment($text)
+    private static function escapeComment(string $text)
     {
         return str_replace(['*/', "\r", "\n"],
                            ['* /', ' ', ' '],
                            $text);
     }
 
+    /**
+     * Creates the object based on the specified configuration.
+     *
+     * @param array $config Passes in the user's cache configuration.
+     *                      * directory: Defines the location where cache files are to be stored.
+     *                      * expiration: Default TTL (time to live) for cache files in seconds.
+     */
     public function __construct(array $config)
     {
         $config = array_merge(self::DEFAULT_CONFIG, $config);
@@ -90,6 +112,22 @@ class LiteCache
         return $value[0];
     }
 
+    /**
+     * Gets the object with the specified name. If the object has been previously cached,
+     * the cached version will be returned if it has not yet expired. If the object has not
+     * been previously cached or the cache file has expired, the specified producer will be
+     * called and the new version will be cached and returned.
+     *
+     * @param string   $name       Unique name of the object.
+     * @param callable $producer   Producer that will be called to generate the data
+     *                             if the cached object has expired.
+     * @param null     $expiration Sets the TTL (time to live) for the cache object.
+     *                             If not specified, the default TTL will be used.
+     *
+     * @return mixed The cached object or a newly created version if it has expired.
+     *
+     * @throws CacheException If the object could not be cached or loaded.
+     */
     public function get(string $name, callable $producer, $expiration = null)
     {
         if (empty($name)) {
@@ -109,12 +147,25 @@ class LiteCache
         return $object;
     }
 
+    /**
+     * Indicates whether a cache file for the object with the specified name exists.
+     *
+     * @param string $name Unique name of the object.
+     *
+     * @return bool True if a cached version of the object exists, false otherwise.
+     */
     public function has(string $name)
     {
         $cacheFileName = $this->getCacheFileName($name);
         return file_exists($cacheFileName);
     }
 
+    /**
+     * Deletes the cache file for the specified object so that subsequent accesses
+     * to the object will trigger an update.
+     *
+     * @param string $name Unique name of the object.
+     */
     public function delete(string $name)
     {
         if ($this->has($name)) {
@@ -122,6 +173,9 @@ class LiteCache
         }
     }
 
+    /**
+     * Deletes all cache files from the cache directory.
+     */
     public function clear()
     {
         $iterator = new DirectoryIterator($this->directory);
