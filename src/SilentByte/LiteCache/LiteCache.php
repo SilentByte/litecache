@@ -38,7 +38,14 @@ class LiteCache
 
     private $directory;
 
-    private static function escapeComment(string $text)
+    /**
+     * Escapes the given text so that it can be placed inside a PHP multi-line comment.
+     *
+     * @param string $text Text to be escaped.
+     *
+     * @return string Escaped text.
+     */
+    private static function escapeComment(string $text) : string
     {
         return str_replace(['*/', "\r", "\n"],
                            ['* /', ' ', ' '],
@@ -62,7 +69,14 @@ class LiteCache
         PathHelper::makeDirectory($this->directory, 0766);
     }
 
-    private function getCacheFileName(string $name)
+    /**
+     * Computes the name of the cache file for the specified object.
+     *
+     * @param string $name Unique name of the object.
+     *
+     * @return string The filename of the cache file including *.php extension.
+     */
+    private function getCacheFileName(string $name) : string
     {
         $hash = md5($name);
         $cacheFileName = PathHelper::combine($this->directory,
@@ -71,6 +85,16 @@ class LiteCache
         return $cacheFileName;
     }
 
+    /**
+     * Gets a boolean value indicating whether the specified
+     * expiration time is past the current time.
+     *
+     * @param int      $timestamp  Timestamp when the object has been created.
+     * @param int|null $expiration The object's time to live. If null is specified,
+     *                             the cache's default expiration time will be used.
+     *
+     * @return bool
+     */
     private function hasExpired(int $timestamp, $expiration) : bool
     {
         if ($expiration === null) {
@@ -84,6 +108,14 @@ class LiteCache
         return time() > $timestamp + $expiration;
     }
 
+    /**
+     * Caches (i.e. persists) the specified object under the given name.
+     *
+     * @param string $name   Unique name of the object.
+     * @param mixed  $object Actual value to be cached.
+     *
+     * @throws CacheException If the cache file could not be created.
+     */
     private function cacheObject(string $name, $object)
     {
         $cacheFileName = $this->getCacheFileName($name);
@@ -98,6 +130,16 @@ class LiteCache
         }
     }
 
+    /**
+     * Loads the cached object from the cache file.
+     *
+     * @param string $name          Unique name of the object.
+     * @param string $cacheFileName Filename of the object's cache file.
+     *
+     * @return mixed The cached object's value.
+     *
+     * @throws CacheException If the cache file was corrupted or the data could not be loaded.
+     */
     private function loadCachedObject(string $name, string $cacheFileName)
     {
         $value = include($cacheFileName);
