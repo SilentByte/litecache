@@ -14,6 +14,12 @@ use DirectoryIterator;
 use SplFileInfo;
 use UnexpectedValueException;
 
+/**
+ * Main class of the LiteCache library that allows the user to cache and load objects
+ * into and from PHP cache files which can be optimized by the execution environment.
+ *
+ * @package SilentByte\LiteCache
+ */
 class LiteCache
 {
     /**
@@ -36,7 +42,17 @@ class LiteCache
         'expiration' => -1
     ];
 
+    /**
+     * User defined path to the cache directory.
+     * @var string
+     */
     private $directory;
+
+    /**
+     * User defined default expiration (TTL, time to live).
+     * @var int
+     */
+    private $expiration;
 
     /**
      * Escapes the given text so that it can be placed inside a PHP multi-line comment.

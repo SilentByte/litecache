@@ -3,7 +3,7 @@
  * SilentByte LiteCache Library
  *
  * @copyright 2017 SilentByte <https://silentbyte.com/>
- * @license https://opensource.org/licenses/MIT MIT
+ * @license   https://opensource.org/licenses/MIT MIT
  */
 
 declare(strict_types = 1);
@@ -12,15 +12,31 @@ namespace SilentByte\LiteCache;
 
 use RuntimeException;
 
+/**
+ * Provides the ability to load and parse a JSON file and
+ * produces an object corresponding to the data defined.
+ *
+ * @package SilentByte\LiteCache
+ */
 class JsonProducer
 {
     private $filename;
 
+    /**
+     * Creates a producer that loads the specified file.
+     *
+     * @param string $filename JSON file to be loaded.
+     */
     public function __construct(string $filename)
     {
         $this->filename = $filename;
     }
 
+    /**
+     * Loads the JSON file and produces the object.
+     *
+     * @return mixed Object defined in the JSON file.
+     */
     public function __invoke()
     {
         $content = @file_get_contents($this->filename);
@@ -38,6 +54,11 @@ class JsonProducer
         return $json;
     }
 
+    /**
+     * Gets the filename of the JSON file.
+     *
+     * @return string JSON filename.
+     */
     public function getFileName() : string
     {
         return $this->filename;

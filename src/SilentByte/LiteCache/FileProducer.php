@@ -12,15 +12,31 @@ namespace SilentByte\LiteCache;
 
 use RuntimeException;
 
+/**
+ * Provides the ability to load a file and produces
+ * a string object corresponding to the content.
+ *
+ * @package SilentByte\LiteCache
+ */
 class FileProducer
 {
     private $filename;
 
+    /**
+     * Creates a producer that loads the specified file.
+     *
+     * @param string $filename File to be loaded.
+     */
     public function __construct(string $filename)
     {
         $this->filename = $filename;
     }
 
+    /**
+     * Loads the file and produces the object.
+     *
+     * @return mixed The file's content.
+     */
     public function __invoke()
     {
         $content = @file_get_contents($this->filename);
@@ -32,6 +48,11 @@ class FileProducer
         return $content;
     }
 
+    /**
+     * Gets the filename.
+     *
+     * @return string The file's path.
+     */
     public function getFileName() : string
     {
         return $this->filename;

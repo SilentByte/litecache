@@ -11,6 +11,6 @@
         <directory>src</directory>
     </files>
     <transformations>
-        <template name="clean"/>
+        <template name="clean" />
     </transformations>
 </phpdoc>
