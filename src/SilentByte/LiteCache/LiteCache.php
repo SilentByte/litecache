@@ -186,7 +186,7 @@ class LiteCache
      *
      * @throws CacheException If the object could not be cached or loaded.
      */
-    public function get(string $name, callable $producer, $expiration = null)
+    public function cache(string $name, callable $producer, $expiration = null)
     {
         if (empty($name)) {
             throw new UnexpectedValueException('Cache object name must not be null or empty.');

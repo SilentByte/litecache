@@ -15,7 +15,7 @@ $cache = new LiteCache([
 ]);
 
 // Load the specified file and cache it.
-$content = $cache->get('file-cache', new FileProducer('./sample_data/test_file.txt'));
+$content = $cache->cache('file-cache', new FileProducer('./sample_data/test_file.txt'));
 
 echo "---- (File Content) -------------------\n";
 echo $content;
