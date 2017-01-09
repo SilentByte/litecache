@@ -11,7 +11,7 @@ $cache = new LiteCache([
     'directory' => '.litecache',
 
     // Cache objects permanently.
-    'expiration' => -1
+    'ttl' => -1
 ]);
 
 // Load the specified JSON configuration file and cache it.

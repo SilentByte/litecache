@@ -38,21 +38,23 @@ class LiteCache
      * Specifies the default configuration.
      */
     const DEFAULT_CONFIG = [
-        'directory'  => '.litecache',
-        'expiration' => -1
+        'directory' => '.litecache',
+        'ttl'       => -1
     ];
 
     /**
      * User defined path to the cache directory.
+     *
      * @var string
      */
-    private $directory;
+    private $cacheDirectory;
 
     /**
-     * User defined default expiration (TTL, time to live).
+     * User defined default time to live in seconds.
+     *
      * @var int
      */
-    private $expiration;
+    private $defaultTimeToLive;
 
     /**
      * Escapes the given text so that it can be placed inside a PHP multi-line comment.
@@ -73,29 +75,29 @@ class LiteCache
      *
      * @param array $config Passes in the user's cache configuration.
      *                      * directory: Defines the location where cache files are to be stored.
-     *                      * expiration: Default TTL (time to live) for cache files in seconds.
+     *                      * ttl: Default time to live for cache files in seconds.
      */
     public function __construct(array $config)
     {
         $config = array_merge(self::DEFAULT_CONFIG, $config);
 
-        $this->directory = PathHelper::directory($config['directory']);
-        $this->expiration = (int)$config['expiration'];
+        $this->cacheDirectory = PathHelper::directory($config['directory']);
+        $this->defaultTimeToLive = (int)$config['ttl'];
 
-        PathHelper::makeDirectory($this->directory, 0766);
+        PathHelper::makeDirectory($this->cacheDirectory, 0766);
     }
 
     /**
-     * Computes the name of the cache file for the specified object.
+     * Computes the filename of the cache file for the specified object.
      *
-     * @param string $name Unique name of the object.
+     * @param string $key Unique name of the object.
      *
      * @return string The filename of the cache file including *.php extension.
      */
-    private function getCacheFileName(string $name) : string
+    private function getCacheFileName(string $key) : string
     {
-        $hash = md5($name);
-        $cacheFileName = PathHelper::combine($this->directory,
+        $hash = md5($key);
+        $cacheFileName = PathHelper::combine($this->cacheDirectory,
                                              $hash . '.php');
 
         return $cacheFileName;
@@ -106,42 +108,44 @@ class LiteCache
      * expiration time is past the current time.
      *
      * @param int      $timestamp  Timestamp when the object has been created.
-     * @param int|null $expiration The object's time to live. If null is specified,
+     * @param int|null $ttl        The object's time to live. If null is specified,
      *                             the cache's default expiration time will be used.
      *
      * @return bool
      */
-    private function hasExpired(int $timestamp, $expiration) : bool
+    private function hasExpired(int $timestamp, $ttl) : bool
     {
-        if ($expiration === null) {
-            $expiration = $this->expiration;
+        // Use default TTL if none specified.
+        if ($ttl === null) {
+            $ttl = $this->defaultTimeToLive;
         }
 
-        if ($expiration < 0) {
+        // A TTL less than zero indicates persistent cache files.
+        if ($ttl < 0) {
             return false;
         }
 
-        return time() > $timestamp + $expiration;
+        return time() > $timestamp + $ttl;
     }
 
     /**
      * Caches (i.e. persists) the specified object under the given name.
      *
-     * @param string $name   Unique name of the object.
+     * @param string $key    Unique name of the object.
      * @param mixed  $object Actual value to be cached.
      *
      * @throws CacheException If the cache file could not be created.
      */
-    private function cacheObject(string $name, $object)
+    private function cacheObject(string $key, $object)
     {
-        $cacheFileName = $this->getCacheFileName($name);
+        $cacheFileName = $this->getCacheFileName($key);
 
-        $data = '<?php /* ' . self::escapeComment($name) . ' ' . date('c') . ' */' . PHP_EOL
+        $data = '<?php /* ' . self::escapeComment($key) . ' ' . date('c') . ' */' . PHP_EOL
             . 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL
             . 'return [' . var_export($object, true) . '];';
 
         if (@file_put_contents($cacheFileName, $data) === false) {
-            throw new CacheException($name, $cacheFileName,
+            throw new CacheException($key, $cacheFileName,
                                      'Cache file could not be written.');
         }
     }
@@ -149,19 +153,20 @@ class LiteCache
     /**
      * Loads the cached object from the cache file.
      *
-     * @param string $name          Unique name of the object.
+     * @param string $key           Unique name of the object.
      * @param string $cacheFileName Filename of the object's cache file.
      *
      * @return mixed The cached object's value.
      *
      * @throws CacheException If the cache file was corrupted or the data could not be loaded.
      */
-    private function loadCachedObject(string $name, string $cacheFileName)
+    private function loadCachedObject(string $key, string $cacheFileName)
     {
+        /** @noinspection PhpIncludeInspection */
         $value = include($cacheFileName);
 
         if (!$value) {
-            throw new CacheException($name, $cacheFileName,
+            throw new CacheException($key, $cacheFileName,
                                      'Cached object could not be loaded.');
         }
 
@@ -176,7 +181,7 @@ class LiteCache
      * been previously cached or the cache file has expired, the specified producer will be
      * called and the new version will be cached and returned.
      *
-     * @param string   $name       Unique name of the object.
+     * @param string   $key        Unique name of the object.
      * @param callable $producer   Producer that will be called to generate the data
      *                             if the cached object has expired.
      * @param null     $expiration Sets the TTL (time to live) for the cache object.
@@ -186,35 +191,35 @@ class LiteCache
      *
      * @throws CacheException If the object could not be cached or loaded.
      */
-    public function cache(string $name, callable $producer, $expiration = null)
+    public function cache(string $key, callable $producer, $expiration = null)
     {
-        if (empty($name)) {
+        if (empty($key)) {
             throw new UnexpectedValueException('Cache object name must not be null or empty.');
         }
 
-        $cacheFileName = $this->getCacheFileName($name);
+        $cacheFileName = $this->getCacheFileName($key);
         $file = new SplFileInfo($cacheFileName);
 
         // Load from cache if cache file exists and has not expired yet.
         if ($file->isFile() && !$this->hasExpired($file->getMTime(), $expiration)) {
-            return $this->loadCachedObject($name, $cacheFileName);
+            return $this->loadCachedObject($key, $cacheFileName);
+        } else {
+            $object = $producer();
+            $this->cacheObject($key, $object);
+            return $object;
         }
-
-        $object = $producer();
-        $this->cacheObject($name, $object);
-        return $object;
     }
 
     /**
      * Indicates whether a cache file for the object with the specified name exists.
      *
-     * @param string $name Unique name of the object.
+     * @param string $key Unique name of the object.
      *
      * @return bool True if a cached version of the object exists, false otherwise.
      */
-    public function has(string $name)
+    public function has(string $key)
     {
-        $cacheFileName = $this->getCacheFileName($name);
+        $cacheFileName = $this->getCacheFileName($key);
         return file_exists($cacheFileName);
     }
 
@@ -222,12 +227,12 @@ class LiteCache
      * Deletes the cache file for the specified object so that subsequent accesses
      * to the object will trigger an update.
      *
-     * @param string $name Unique name of the object.
+     * @param string $key Unique name of the object.
      */
-    public function delete(string $name)
+    public function delete(string $key)
     {
-        if ($this->has($name)) {
-            unlink($this->getCacheFileName($name));
+        if ($this->has($key)) {
+            unlink($this->getCacheFileName($key));
         }
     }
 
@@ -236,7 +241,7 @@ class LiteCache
      */
     public function clear()
     {
-        $iterator = new DirectoryIterator($this->directory);
+        $iterator = new DirectoryIterator($this->cacheDirectory);
         foreach ($iterator as $file) {
             if (!$file->isDot() && $file->getExtension() === 'php') {
                 unlink($file->getPathname());

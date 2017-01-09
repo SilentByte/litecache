@@ -8,7 +8,7 @@ $cache = new \SilentByte\LiteCache\LiteCache([
     'directory' => '.litecache',
 
     // Make cached objects expire after 10 minutes.
-    'expiration' => 60 * 10
+    'ttl' => 60 * 10
 ]);
 
 // Issue a Github API request and cache it under the specified name ('git-request').
