@@ -2,6 +2,7 @@ vendor/
 docs/
 .litecache/
 
+composer.lock
 *.test.php
 *.sublime-workspace
 

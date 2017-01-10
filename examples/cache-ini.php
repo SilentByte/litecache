@@ -11,11 +11,11 @@ $cache = new LiteCache([
     'directory' => '.litecache',
 
     // Cache objects permanently.
-    'expiration' => -1
+    'ttl' => LiteCache::EXPIRE_NEVER
 ]);
 
 // Load the specified INI configuration file and cache it.
-$config = $cache->get('ini-cache', new IniProducer('./sample_data/test_ini.ini'));
+$config = $cache->cache('ini-cache', new IniProducer('./sample_data/test_ini.ini'));
 
 echo "Host: ", $config['server']['host'], "\n",
      "User: ", $config['server']['user'], "\n",

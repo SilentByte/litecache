@@ -11,11 +11,11 @@ $cache = new LiteCache([
     'directory' => '.litecache',
 
     // Cache objects permanently.
-    'expiration' => -1
+    'ttl' => LiteCache::EXPIRE_NEVER
 ]);
 
 // Load the specified JSON configuration file and cache it.
-$config = $cache->get('json-cache', new JsonProducer('./sample_data/test_json.json'));
+$config = $cache->cache('json-cache', new JsonProducer('./sample_data/test_json.json'));
 
 echo "Host: ", $config->server->host, "\n",
      "User: ", $config->server->user, "\n",

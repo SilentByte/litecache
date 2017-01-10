@@ -11,6 +11,7 @@ declare(strict_types = 1);
 namespace SilentByte\LiteCache;
 
 use Exception;
+use Psr\SimpleCache\CacheException as PsrCacheException;
 
 /**
  * Base class for all cache related exceptions.
@@ -18,6 +19,7 @@ use Exception;
  * @package SilentByte\LiteCache
  */
 class CacheException extends Exception
+    implements PsrCacheException
 {
     private $name;
     private $cache;
