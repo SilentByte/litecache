@@ -172,7 +172,7 @@ class LiteCache implements CacheInterface
     {
         $hash = md5($key);
         $cacheFileName = PathHelper::combine($this->cacheDirectory,
-                                             $hash . '.php');
+                                             $hash . '.litecache.php');
 
         return $cacheFileName;
     }
@@ -335,7 +335,9 @@ class LiteCache implements CacheInterface
         $iterator = new DirectoryIterator($this->cacheDirectory);
 
         foreach ($iterator as $file) {
-            if (!$file->isDot() && $file->getExtension() === 'php') {
+            if (!$file->isDot()
+                && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
+            ) {
                 if (!unlink($file->getPathname()))
                     return false;
             }
