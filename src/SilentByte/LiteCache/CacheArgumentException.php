@@ -29,7 +29,7 @@ class CacheArgumentException extends CacheException
      */
     public function __construct(string $message, Exception $previous = null)
     {
-        parent::__construct($message, 0, $previous);
+        parent::__construct($message);
     }
 }
 

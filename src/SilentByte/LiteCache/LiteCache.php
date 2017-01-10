@@ -80,10 +80,10 @@ class LiteCache implements CacheInterface
      * @throws CacheArgumentException
      *     If the specified key is neither an array nor a Traversable.
      */
-    private static function ensureKeyValidity(string $key)
+    private static function ensureKeyValidity($key)
     {
         if (empty($key)) {
-            throw new CacheArgumentException("Key '${key}' is invalid.");
+            throw new CacheArgumentException('Key must not be null or empty.');
         }
     }
 
@@ -113,12 +113,12 @@ class LiteCache implements CacheInterface
      */
     private static function dateIntervalToSeconds(DateInterval $interval) : int
     {
-        return $interval->s                    // Seconds.
-        + ($interval->i * 60)                  // Minutes.
-        + ($interval->h * 60 * 60)             // Hours.
-        + ($interval->d * 60 * 60 * 24)        // Days.
-        + ($interval->m * 60 * 60 * 24 * 30)   // Months.
-        + ($interval->y * 60 * 60 * 24 * 365); // Years.
+        return ($interval->s                        // Seconds.
+            + ($interval->i * 60)                   // Minutes.
+            + ($interval->h * 60 * 60)              // Hours.
+            + ($interval->d * 60 * 60 * 24)         // Days.
+            + ($interval->m * 60 * 60 * 24 * 30)    // Months.
+            + ($interval->y * 60 * 60 * 24 * 365)); // Years.
     }
 
     /**
@@ -128,9 +128,10 @@ class LiteCache implements CacheInterface
      *                      * directory: Defines the location where cache files are to be stored.
      *                      * ttl: Default time to live for cache files in seconds.
      */
-    public function __construct(array $config)
+    public function __construct(array $config = null)
     {
-        $config = array_merge(self::DEFAULT_CONFIG, $config);
+        $config = array_merge(self::DEFAULT_CONFIG,
+                              $config !== null ? $config : []);
 
         $this->cacheDirectory = PathHelper::directory($config['directory']);
         $this->defaultTimeToLive = (int)$config['ttl'];
@@ -150,14 +151,15 @@ class LiteCache implements CacheInterface
     private function normalizeTimeToLive($ttl) : int
     {
         if ($ttl === null) {
-            $ttl = $this->defaultTimeToLive;
-            return $ttl;
-        } else if ($ttl instanceof DateInterval) {
-            $ttl = self::dateIntervalToSeconds($ttl);
-            return $ttl;
+            return $this->defaultTimeToLive;
         } else {
-            $ttl = (int)$ttl;
-            return $ttl;
+            if ($ttl instanceof DateInterval) {
+                $ttl = self::dateIntervalToSeconds($ttl);
+                return $ttl;
+            } else {
+                $ttl = (int)$ttl;
+                return $ttl;
+            }
         }
     }
 
@@ -175,6 +177,31 @@ class LiteCache implements CacheInterface
                                              $hash . '.litecache.php');
 
         return $cacheFileName;
+    }
+
+    /**
+     * Writes the data into the specified file using an exclusive lock.
+     *
+     * @param string      $filename Target filename.
+     * @param       mixed $data     Data to be written.
+     *
+     * @return bool
+     */
+    private function writeDataToFile(string $filename, $data) : bool
+    {
+        if (!$fp = @fopen($filename, 'c')) {
+            return false;
+        }
+
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+            fwrite($fp, $data);
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+
+        fclose($fp);
+        return true;
     }
 
     /**
@@ -200,7 +227,7 @@ class LiteCache implements CacheInterface
             $data .= "return time() > $relativeTtl ? null : [" . var_export($object, true) . '];';
         }
 
-        return @file_put_contents($cacheFileName, $data, LOCK_EX) !== false;
+        return $this->writeDataToFile($cacheFileName, $data);
     }
 
     /**
@@ -224,6 +251,26 @@ class LiteCache implements CacheInterface
         // Actual value is wrapped in an array in order to distinguish
         // between 'include' returning FALSE and FALSE as a value.
         return $value[0];
+    }
+
+    /**
+     * Gets the user defined cache directory.
+     *
+     * @return string
+     */
+    public function getCacheDirectory() : string
+    {
+        return $this->cacheDirectory;
+    }
+
+    /**
+     * Gets the user defined default TTL (time to live) in seconds.
+     *
+     * @return int
+     */
+    public function getDefaultTimeToLive() : int
+    {
+        return $this->defaultTimeToLive;
     }
 
     /**
@@ -299,9 +346,7 @@ class LiteCache implements CacheInterface
             // If object is not cached or has expired, call producer to obtain
             // the new value and subsequently cache it.
             $object = $producer();
-
-            $ttl = $this->normalizeTimeToLive($ttl);
-            $this->storeObject($key, $object, $ttl);
+            $this->set($key, $object, $ttl);
 
             return $object;
         }
@@ -338,8 +383,9 @@ class LiteCache implements CacheInterface
             if (!$file->isDot()
                 && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
             ) {
-                if (!unlink($file->getPathname()))
+                if (!unlink($file->getPathname())) {
                     return false;
+                }
             }
         }
 
