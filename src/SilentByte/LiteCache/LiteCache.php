@@ -10,9 +10,10 @@ declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
+use DateInterval;
 use DirectoryIterator;
-use SplFileInfo;
-use UnexpectedValueException;
+use Psr\SimpleCache\CacheInterface;
+use Traversable;
 
 /**
  * Main class of the LiteCache library that allows the user to cache and load objects
@@ -20,7 +21,7 @@ use UnexpectedValueException;
  *
  * @package SilentByte\LiteCache
  */
-class LiteCache
+class LiteCache implements CacheInterface
 {
     /**
      * Indicates that objects cached with this setting will never expire
@@ -39,7 +40,7 @@ class LiteCache
      */
     const DEFAULT_CONFIG = [
         'directory' => '.litecache',
-        'ttl'       => -1
+        'ttl'       => LiteCache::EXPIRE_NEVER
     ];
 
     /**
@@ -71,6 +72,56 @@ class LiteCache
     }
 
     /**
+     * Ensures that the specified string is valid cache key.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param mixed $key Key to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified key is neither an array nor a Traversable.
+     */
+    private static function ensureKeyValidity(string $key)
+    {
+        if (empty($key)) {
+            throw new CacheArgumentException("Key '${key}' is invalid.");
+        }
+    }
+
+    /**
+     * Ensures that the specified argument is either an array or an instance of Traversable.
+     * If these conditions are not met, CacheArgumentException will be thrown.
+     *
+     * @param mixed $argument Argument to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified argument is neither an array nor a Traversable.
+     */
+    private static function ensureArrayOrTraversable($argument)
+    {
+        if (!is_array($argument) && !$argument instanceof Traversable) {
+            throw new CacheArgumentException('Argument is neither an array nor a Traversable.');
+        }
+    }
+
+    /**
+     * Converts the specified DateInterval instance to a value indicating
+     * the number of seconds within that interval.
+     *
+     * @param DateInterval $interval Interval to be converted to seconds.
+     *
+     * @return int Number of seconds in the interval.
+     */
+    private static function dateIntervalToSeconds(DateInterval $interval) : int
+    {
+        return $interval->s                    // Seconds.
+        + ($interval->i * 60)                  // Minutes.
+        + ($interval->h * 60 * 60)             // Hours.
+        + ($interval->d * 60 * 60 * 24)        // Days.
+        + ($interval->m * 60 * 60 * 24 * 30)   // Months.
+        + ($interval->y * 60 * 60 * 24 * 365); // Years.
+    }
+
+    /**
      * Creates the object based on the specified configuration.
      *
      * @param array $config Passes in the user's cache configuration.
@@ -85,6 +136,29 @@ class LiteCache
         $this->defaultTimeToLive = (int)$config['ttl'];
 
         PathHelper::makeDirectory($this->cacheDirectory, 0766);
+    }
+
+    /**
+     * Normalizes the given TTL (time to live) value to an integer representing
+     * the number of seconds an object is to be cached.
+     *
+     * @param null|int|DateInterval $ttl TTL value in seconds (or as a DateInterval) where null
+     *                                   indicates this cache instance's default TTL.
+     *
+     * @return int TTL in seconds.
+     */
+    private function normalizeTimeToLive($ttl) : int
+    {
+        if ($ttl === null) {
+            $ttl = $this->defaultTimeToLive;
+            return $ttl;
+        } else if ($ttl instanceof DateInterval) {
+            $ttl = self::dateIntervalToSeconds($ttl);
+            return $ttl;
+        } else {
+            $ttl = (int)$ttl;
+            return $ttl;
+        }
     }
 
     /**
@@ -104,70 +178,47 @@ class LiteCache
     }
 
     /**
-     * Gets a boolean value indicating whether the specified
-     * expiration time is past the current time.
-     *
-     * @param int      $timestamp  Timestamp when the object has been created.
-     * @param int|null $ttl        The object's time to live. If null is specified,
-     *                             the cache's default expiration time will be used.
-     *
-     * @return bool
-     */
-    private function hasExpired(int $timestamp, $ttl) : bool
-    {
-        // Use default TTL if none specified.
-        if ($ttl === null) {
-            $ttl = $this->defaultTimeToLive;
-        }
-
-        // A TTL less than zero indicates persistent cache files.
-        if ($ttl < 0) {
-            return false;
-        }
-
-        return time() > $timestamp + $ttl;
-    }
-
-    /**
-     * Caches (i.e. persists) the specified object under the given name.
+     * Caches (i.e. persists) the object under the given name with the specified TTL (time to live).
      *
      * @param string $key    Unique name of the object.
      * @param mixed  $object Actual value to be cached.
+     * @param int    $ttl    Time to live in seconds or null for persistent caching.
      *
-     * @throws CacheException If the cache file could not be created.
+     * @return bool True on success and false on failure.
      */
-    private function cacheObject(string $key, $object)
+    private function storeObject(string $key, $object, int $ttl)
     {
         $cacheFileName = $this->getCacheFileName($key);
 
         $data = '<?php /* ' . self::escapeComment($key) . ' ' . date('c') . ' */' . PHP_EOL
-            . 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL
-            . 'return [' . var_export($object, true) . '];';
+            . 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL;
 
-        if (@file_put_contents($cacheFileName, $data) === false) {
-            throw new CacheException($key, $cacheFileName,
-                                     'Cache file could not be written.');
+        if ($ttl === self::EXPIRE_NEVER) {
+            $data .= 'return [' . var_export($object, true) . '];';
+        } else {
+            $relativeTtl = time() + (int)$ttl;
+            $data .= "return time() > $relativeTtl ? null : [" . var_export($object, true) . '];';
         }
+
+        return @file_put_contents($cacheFileName, $data, LOCK_EX) !== false;
     }
 
     /**
      * Loads the cached object from the cache file.
      *
-     * @param string $key           Unique name of the object.
-     * @param string $cacheFileName Filename of the object's cache file.
+     * @param string $key Unique name of the object.
      *
      * @return mixed The cached object's value.
-     *
-     * @throws CacheException If the cache file was corrupted or the data could not be loaded.
      */
-    private function loadCachedObject(string $key, string $cacheFileName)
+    private function loadObject(string $key)
     {
-        /** @noinspection PhpIncludeInspection */
-        $value = include($cacheFileName);
+        $cacheFileName = $this->getCacheFileName($key);
 
+        /** @noinspection PhpIncludeInspection */
+        $value = @include($cacheFileName);
         if (!$value) {
-            throw new CacheException($key, $cacheFileName,
-                                     'Cached object could not be loaded.');
+            // As per PSR-16, cache misses result in null.
+            return null;
         }
 
         // Actual value is wrapped in an array in order to distinguish
@@ -176,77 +227,214 @@ class LiteCache
     }
 
     /**
-     * Gets the object with the specified name. If the object has been previously cached,
-     * the cached version will be returned if it has not yet expired. If the object has not
+     * Fetches a value from the cache.
+     *
+     * @param string $key     The unique key of this item in the cache.
+     * @param mixed  $default Default value to return if the key does not exist.
+     *
+     * @return mixed The value of the item from the cache, or $default in case of cache miss.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if the $key string is not a legal value.
+     */
+    public function get($key, $default = null)
+    {
+        self::ensureKeyValidity($key);
+        $object = $this->loadObject($key);
+
+        if ($object === null) {
+            return $default;
+        }
+
+        return $object;
+    }
+
+    /**
+     * Persists data in the cache, uniquely referenced by a key with an optional expiration TTL time.
+     *
+     * @param string                $key   The key of the item to store.
+     * @param mixed                 $value The value of the item to store, must be serializable.
+     * @param null|int|DateInterval $ttl   Optional. The TTL value of this item. If no value is sent and
+     *                                     the driver supports TTL then the library may set a default value
+     *                                     for it or let the driver take care of that.
+     *
+     * @return bool True on success and false on failure.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if the $key string is not a legal value.
+     */
+    public function set($key, $value, $ttl = null)
+    {
+        self::ensureKeyValidity($key);
+
+        $ttl = $this->normalizeTimeToLive($ttl);
+        return $this->storeObject($key, $value, $ttl);
+    }
+
+    /**
+     * Gets the object with the specified name. If the object has been previously cached
+     * and has not expired yet, the cached version will be returned. If the object has not
      * been previously cached or the cache file has expired, the specified producer will be
      * called and the new version will be cached and returned.
      *
-     * @param string   $key        Unique name of the object.
-     * @param callable $producer   Producer that will be called to generate the data
-     *                             if the cached object has expired.
-     * @param null     $expiration Sets the TTL (time to live) for the cache object.
-     *                             If not specified, the default TTL will be used.
+     * @param string                $key        Unique name of the object.
+     * @param callable              $producer   Producer that will be called to generate the data
+     *                                          if the cached object has expired.
+     * @param null|int|DateInterval $ttl        The TTL (time to live) value for the object.
      *
      * @return mixed The cached object or a newly created version if it has expired.
      *
-     * @throws CacheException If the object could not be cached or loaded.
+     * @throws CacheArgumentException
+     *     If the object could not be cached or loaded.
      */
-    public function cache(string $key, callable $producer, $expiration = null)
+    public function cache(string $key, callable $producer, $ttl = null)
     {
-        if (empty($key)) {
-            throw new UnexpectedValueException('Cache object name must not be null or empty.');
-        }
+        self::ensureKeyValidity($key);
 
-        $cacheFileName = $this->getCacheFileName($key);
-        $file = new SplFileInfo($cacheFileName);
-
-        // Load from cache if cache file exists and has not expired yet.
-        if ($file->isFile() && !$this->hasExpired($file->getMTime(), $expiration)) {
-            return $this->loadCachedObject($key, $cacheFileName);
+        $object = $this->get($key);
+        if ($object !== null) {
+            // Object's still in cache and has not expired.
+            return $object;
         } else {
+            // If object is not cached or has expired, call producer to obtain
+            // the new value and subsequently cache it.
             $object = $producer();
-            $this->cacheObject($key, $object);
+
+            $ttl = $this->normalizeTimeToLive($ttl);
+            $this->storeObject($key, $object, $ttl);
+
             return $object;
         }
     }
 
     /**
-     * Indicates whether a cache file for the object with the specified name exists.
+     * Delete an item from the cache by its unique key.
      *
-     * @param string $key Unique name of the object.
+     * @param string $key The unique cache key of the item to delete.
      *
-     * @return bool True if a cached version of the object exists, false otherwise.
+     * @return bool True if the item was successfully removed. False if there was an error.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if the $key string is not a legal value.
      */
-    public function has(string $key)
+    public function delete($key)
     {
+        self::ensureKeyValidity($key);
+
         $cacheFileName = $this->getCacheFileName($key);
-        return file_exists($cacheFileName);
+        return @unlink($cacheFileName);
     }
 
     /**
-     * Deletes the cache file for the specified object so that subsequent accesses
-     * to the object will trigger an update.
+     * Wipes clean the entire cache's keys.
      *
-     * @param string $key Unique name of the object.
-     */
-    public function delete(string $key)
-    {
-        if ($this->has($key)) {
-            unlink($this->getCacheFileName($key));
-        }
-    }
-
-    /**
-     * Deletes all cache files from the cache directory.
+     * @return bool True on success and false on failure.
      */
     public function clear()
     {
         $iterator = new DirectoryIterator($this->cacheDirectory);
+
         foreach ($iterator as $file) {
             if (!$file->isDot() && $file->getExtension() === 'php') {
-                unlink($file->getPathname());
+                if (!unlink($file->getPathname()))
+                    return false;
             }
         }
+
+        return true;
+    }
+
+    /** @noinspection PhpUndefinedClassInspection */
+    /**
+     * Obtains multiple cache items by their unique keys.
+     *
+     * @param iterable $keys    A list of keys that can obtained in a single operation.
+     * @param mixed    $default Default value to return for keys that do not exist.
+     *
+     * @return iterable A list of key => value pairs. Cache keys that do not exist or are stale will have $default as value.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if $keys is neither an array nor a Traversable,
+     *     or if any of the $keys are not a legal value.
+     */
+    public function getMultiple($keys, $default = null)
+    {
+        self::ensureArrayOrTraversable($keys);
+
+        $objects = [];
+        foreach ($keys as $key) {
+            $objects[$key] = $this->get($key, $default);
+        }
+
+        return $objects;
+    }
+
+    /** @noinspection PhpUndefinedClassInspection */
+    /**
+     * Persists a set of key => value pairs in the cache, with an optional TTL.
+     *
+     * @param iterable              $values A list of key => value pairs for a multiple-set operation.
+     * @param null|int|DateInterval $ttl    Optional. The TTL value of this item. If no value is sent and
+     *                                      the driver supports TTL then the library may set a default value
+     *                                      for it or let the driver take care of that.
+     *
+     * @return bool True on success and false on failure.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if $values is neither an array nor a Traversable,
+     *     or if any of the $values are not a legal value.
+     */
+    public function setMultiple($values, $ttl = null)
+    {
+        self::ensureArrayOrTraversable($values);
+
+        foreach ($values as $key => $value) {
+            $this->set($key, $value, $ttl);
+        }
+    }
+
+    /** @noinspection PhpUndefinedClassInspection */
+    /**
+     * Deletes multiple cache items in a single operation.
+     *
+     * @param iterable $keys A list of string-based keys to be deleted.
+     *
+     * @return bool True if the items were successfully removed. False if there was an error.
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if $keys is neither an array nor a Traversable,
+     *     or if any of the $keys are not a legal value.
+     */
+    public function deleteMultiple($keys)
+    {
+        self::ensureArrayOrTraversable($keys);
+
+        foreach ($keys as $key) {
+            $this->delete($key);
+        }
+    }
+
+    /**
+     * Determines whether an item is present in the cache.
+     *
+     * NOTE: It is recommended that has() is only to be used for cache warming type purposes
+     * and not to be used within your live applications operations for get/set, as this method
+     * is subject to a race condition where your has() will return true and immediately after,
+     * another script can remove it making the state of your app out of date.
+     *
+     * @param string $key The cache item key.
+     *
+     * @return bool
+     *
+     * @throws \Psr\SimpleCache\InvalidArgumentException
+     *     MUST be thrown if the $key string is not a legal value.
+     */
+    public function has($key)
+    {
+        self::ensureKeyValidity($key);
+
+        $cacheFileName = $this->getCacheFileName($key);
+        return file_exists($cacheFileName);
     }
 }
 

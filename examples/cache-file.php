@@ -11,7 +11,7 @@ $cache = new LiteCache([
     'directory' => '.litecache',
 
     // Cache objects permanently.
-    'ttl' => -1
+    'ttl' => LiteCache::EXPIRE_NEVER
 ]);
 
 // Load the specified file and cache it.
