@@ -21,46 +21,16 @@ use Psr\SimpleCache\CacheException as PsrCacheException;
 class CacheException extends Exception
     implements PsrCacheException
 {
-    private $name;
-    private $cache;
-
     /**
      * Creates the exception object.
      *
-     * @param string         $name     Unique name of the cache object.
-     * @param string         $cache    Name of the cache file.
-     * @param string         $message  Message indicating what caused the exception to be thrown.
+     * @param string         $message  Message indicating what caused the exception.
      * @param Exception|null $previous The exception that was the cause of this cache exception.
      */
-    public function __construct(string $name,
-                                string $cache,
-                                string $message,
+    public function __construct(string $message,
                                 Exception $previous = null)
     {
-        $this->name = $name;
-        $this->cache = $cache;
-
         parent::__construct($message, 0, $previous);
-    }
-
-    /**
-     * Gets the unique name of the object that caused the exception.
-     *
-     * @return string
-     */
-    public function getName() : string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Gets the cache name of the object that caused the exception.
-     *
-     * @return string
-     */
-    public function getCache() : string
-    {
-        return $this->cache;
     }
 }
 
