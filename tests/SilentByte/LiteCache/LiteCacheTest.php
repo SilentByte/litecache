@@ -11,6 +11,7 @@ declare(strict_types = 1);
 namespace SilentByte\LiteCache;
 
 use org\bovigo\vfs\vfsStream;
+use org\bovigo\vfs\visitor\vfsStreamStructureVisitor;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
@@ -21,6 +22,13 @@ class LiteCacheTest extends TestCase
     protected function setUp()
     {
         $this->vfs = vfsStream::setup('cache');
+    }
+
+    protected function getVfsDirectoryStructure()
+    {
+        /** @noinspection PhpUndefinedMethodInspection */
+        return vfsStream::inspect(new vfsStreamStructureVisitor(),
+                                  $this->vfs)->getStructure();
     }
 
     public function invalidKeyProvider()
@@ -208,10 +216,67 @@ class LiteCacheTest extends TestCase
             return 1234;
         });
 
-        /** @noinspection SpellCheckingInspection */
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
                                 . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+    }
+
+    /**
+     * @dataProvider invalidKeyProvider
+     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     */
+    public function testDeleteThrowsThrowsOnInvalidKey($key)
+    {
+        $cache = $this->create();
+        $cache->delete($key);
+    }
+
+    public function testDeleteReturnsFalseOnUncachedObject()
+    {
+        $cache = $this->create();
+        $this->assertFalse($cache->delete('uncached'));
+    }
+
+    public function testDeleteActuallyDeletesCacheFile()
+    {
+        $cache = $this->create();
+
+        $cache->set('test', 1234);
+        $cache->delete('test');
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+    }
+
+    public function testDeleteReturnsTrueOnSuccess()
+    {
+        $cache = $this->create();
+
+        $cache->set('test', 1234);
+        $this->assertTrue($cache->delete('test'));
+    }
+
+    public function testClearReturnsTrueOnEmptyCache()
+    {
+        $cache = $this->create();
+        $this->assertTrue($cache->clear());
+    }
+
+    public function testClearClearsAllCacheFiles()
+    {
+        $cache = $this->create();
+
+        $cache->set('aaa', 1234);
+        $cache->set('bbb', 'test');
+        $cache->set('ccc', 3.1415);
+
+        $this->assertNotEmpty($this->getVfsDirectoryStructure()
+                              ['cache']['.litecache']);
+        $cache->clear();
+
+        $this->assertEmpty($this->getVfsDirectoryStructure()
+                           ['cache']['.litecache']);
     }
 }
 

@@ -463,7 +463,8 @@ class LiteCache implements CacheInterface
      *
      * @param string $key The unique cache key of the item to delete.
      *
-     * @return bool True if the item was successfully removed. False if there was an error.
+     * @return bool True if the item was successfully removed.
+     *              False if there was an error.
      *
      * @throws \Psr\SimpleCache\InvalidArgumentException
      *     MUST be thrown if the $key string is not a legal value.
