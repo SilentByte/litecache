@@ -45,7 +45,9 @@ class LiteCacheTest extends TestCase
                 'foo'   => 'bar',
                 'xyz'   => 1234,
                 'array' => [10, 20, 30, 40, 50]
-            ]]
+            ]],
+            ['key-object', $object],
+            ['key-array-object', [$object, $object, $object]]
         ];
     }
 
