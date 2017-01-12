@@ -13,6 +13,7 @@ namespace SilentByte\LiteCache;
 use DateInterval;
 use DirectoryIterator;
 use Psr\SimpleCache\CacheInterface;
+use Throwable;
 use Traversable;
 
 /**
@@ -439,6 +440,9 @@ class LiteCache implements CacheInterface
      *
      * @throws CacheArgumentException
      *     If the object could not be cached or loaded.
+     *
+     * @throws CacheProducerException
+     *     If the specified producers throws an exception.
      */
     public function cache(string $key, callable $producer, $ttl = null)
     {
@@ -449,11 +453,16 @@ class LiteCache implements CacheInterface
             // Object's still in cache and has not expired.
             return $object;
         } else {
-            // If object is not cached or has expired, call producer to obtain
-            // the new value and subsequently cache it.
-            $object = $producer();
-            $this->set($key, $object, $ttl);
 
+            try {
+                // If object is not cached or has expired, call producer to obtain
+                // the new value and subsequently cache it.
+                $object = $producer();
+            } catch (Throwable $t) {
+                throw new CacheProducerException($t);
+            }
+
+            $this->set($key, $object, $ttl);
             return $object;
         }
     }

@@ -10,8 +10,8 @@ declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
-use Exception;
 use Psr\SimpleCache\InvalidArgumentException;
+use Throwable;
 
 /**
  * Will be thrown if arguments given to caching functions are invalid or unacceptable.
@@ -25,11 +25,11 @@ class CacheArgumentException extends CacheException
      * Creates the exception object.
      *
      * @param string         $message
-     * @param Exception|null $previous
+     * @param Throwable|null $previous
      */
-    public function __construct(string $message, Exception $previous = null)
+    public function __construct(string $message, Throwable $previous = null)
     {
-        parent::__construct($message);
+        parent::__construct($message, $previous);
     }
 }
 
