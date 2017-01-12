@@ -247,16 +247,6 @@ class LiteCacheTest extends TestCase
                                 . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
     }
 
-    /**
-     * @dataProvider invalidKeyProvider
-     * @expectedException \Psr\SimpleCache\InvalidArgumentException
-     */
-    public function testDeleteThrowsThrowsOnInvalidKey($key)
-    {
-        $cache = $this->create();
-        $cache->delete($key);
-    }
-
     public function testDeleteReturnsFalseOnUncachedObject()
     {
         $cache = $this->create();
@@ -281,6 +271,16 @@ class LiteCacheTest extends TestCase
 
         $cache->set('test', 1234);
         $this->assertTrue($cache->delete('test'));
+    }
+
+    /**
+     * @dataProvider invalidKeyProvider
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testDeleteThrowsThrowsOnInvalidKey($key)
+    {
+        $cache = $this->create();
+        $cache->delete($key);
     }
 
     public function testClearReturnsTrueOnEmptyCache()
@@ -442,6 +442,99 @@ class LiteCacheTest extends TestCase
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
                                 . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
+    }
+
+    public function testDeleteMultipleReturnsFalseOnUncachedObject()
+    {
+        $cache = $this->create();
+
+        $cache->set('cached-1', 1234);
+        $this->assertFalse($cache->deleteMultiple(
+            [
+                'cached-1',
+                'uncached-1',
+                'uncached-2',
+                'uncached-3',
+            ]));
+    }
+
+    public function testDeleteMultipleActuallyDeletesCacheFile()
+    {
+        $cache = $this->create();
+
+        $objects = [
+            'test-1' => 1234,
+            'test-2' => 'test',
+            'test-3' => [10, 20, 30, 40, 50]
+        ];
+
+        $cache->setMultiple($objects);
+        $cache->deleteMultiple(array_keys($objects));
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
+    }
+
+    public function testDeleteMultipleReturnsTrueOnSuccess()
+    {
+        $cache = $this->create();
+
+        $objects = [
+            'test-1' => 1234,
+            'test-2' => 'test',
+            'test-3' => [10, 20, 30, 40, 50]
+        ];
+
+        $cache->setMultiple($objects);
+        $this->assertTrue($cache->deleteMultiple(array_keys($objects)));
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testDeleteMultipleThrowsThrowsOnInvalidKey()
+    {
+        $cache = $this->create();
+
+        $invalidKeys = [];
+        foreach ($this->invalidKeyProvider() as $entry) {
+            $invalidKeys[] = $entry[0];
+        }
+
+        $cache->deleteMultiple($invalidKeys);
+    }
+
+    public function testHasReturnsTrueOnCachedObject()
+    {
+        $cache = $this->create();
+        $cache->set('test', 1234);
+
+        $this->assertTrue($cache->has('test'));
+    }
+
+    public function testHasReturnsFalseOnUncachedObject()
+    {
+        $cache = $this->create();
+        $this->assertFalse($cache->has('uncached'));
+    }
+
+    /**
+     * @dataProvider invalidKeyProvider
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testHasThrowsOnInvalidKey($key)
+    {
+        $cache = $this->create();
+        $cache->has($key);
     }
 }
 

@@ -565,8 +565,12 @@ class LiteCache implements CacheInterface
         self::ensureArrayOrTraversable($keys);
 
         foreach ($keys as $key) {
-            $this->delete($key);
+            if (!$this->delete($key)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     /**
