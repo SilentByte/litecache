@@ -59,6 +59,33 @@ class LiteCacheTest extends TestCase
         ];
     }
 
+    public function multipleKeyObjectProvider()
+    {
+        $object = new stdClass();
+        $object->foo = 'bar';
+        $object->xyz = 1234;
+        $object->array = [10, 20, 30, 40, 50];
+
+        return [
+            [
+                [
+                    'key-string'        => 'test',
+                    'key-integer'       => 1234,
+                    'key-float'         => 3.1415,
+                    'key-boolean-true'  => true,
+                    'key-boolean-false' => false,
+                    'key-array'         => [
+                        'foo'   => 'bar',
+                        'xyz'   => 1234,
+                        'array' => [10, 20, 30, 40, 50]
+                    ],
+                    'key-object'        => $object,
+                    'key-array-object'  => [$object, $object, $object]
+                ]
+            ]
+        ];
+    }
+
     public function create($config = null)
     {
         $defaultConfig = [
@@ -108,14 +135,14 @@ class LiteCacheTest extends TestCase
     public function testGetReturnsCachedObject($key, $object)
     {
         $cache = $this->create();
-        $cache->set($key, $object, LiteCache::EXPIRE_NEVER);
+        $cache->set($key, $object);
 
         $this->assertEquals($object, $cache->get($key));
     }
 
     /**
      * @dataProvider invalidKeyProvider
-     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */
     public function testGetThrowsOnInvalidKey($key)
     {
@@ -125,7 +152,7 @@ class LiteCacheTest extends TestCase
 
     /**
      * @dataProvider invalidKeyProvider
-     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */
     public function testSetThrowsOnInvalidKey($key)
     {
@@ -138,14 +165,13 @@ class LiteCacheTest extends TestCase
         $cache = $this->create();
         $cache->set('test', 1234);
 
-        /** @noinspection SpellCheckingInspection */
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
                                 . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
     }
 
     /**
-     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */
     public function testCacheThrowsOnEmptyKey()
     {
@@ -223,7 +249,7 @@ class LiteCacheTest extends TestCase
 
     /**
      * @dataProvider invalidKeyProvider
-     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */
     public function testDeleteThrowsThrowsOnInvalidKey($key)
     {
@@ -277,6 +303,145 @@ class LiteCacheTest extends TestCase
 
         $this->assertEmpty($this->getVfsDirectoryStructure()
                            ['cache']['.litecache']);
+    }
+
+    public function testGetMultipleReturnsNullForUncachedObjects()
+    {
+        $cache = $this->create();
+        $objects = $cache->getMultiple([
+                                           'uncached-object-1',
+                                           'uncached-object-2',
+                                           'uncached-object-3',
+                                           'uncached-object-4'
+                                       ]);
+
+        $this->assertEquals([
+                                'uncached-object-1' => null,
+                                'uncached-object-2' => null,
+                                'uncached-object-3' => null,
+                                'uncached-object-4' => null
+                            ],
+                            $objects);
+    }
+
+    public function testGetMultipleReturnsDefaultForUncachedObjects()
+    {
+        $cache = $this->create();
+        $objects = $cache->getMultiple([
+                                           'uncached-object-1',
+                                           'uncached-object-2',
+                                           'uncached-object-3',
+                                           'uncached-object-4'
+                                       ], 1234);
+
+        $this->assertEquals([
+                                'uncached-object-1' => 1234,
+                                'uncached-object-2' => 1234,
+                                'uncached-object-3' => 1234,
+                                'uncached-object-4' => 1234
+                            ],
+                            $objects);
+    }
+
+    /**
+     * @dataProvider multipleKeyObjectProvider
+     */
+    public function testGetMultipleReturnsCachedObjects($keys)
+    {
+        $cache = $this->create();
+        $cache->setMultiple($keys);
+
+        $objects = $cache->getMultiple(array_keys($keys));
+        $this->assertEquals($keys, $objects);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testGetMultipleThrowsOnNoArrayNoTraversable()
+    {
+        $cache = $this->create();
+        $cache->getMultiple(1234);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testGetMultipleThrowsOnNull()
+    {
+        $cache = $this->create();
+        $cache->getMultiple(null);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testGetMultipleThrowsOnInvalidKey()
+    {
+        $cache = $this->create();
+
+        $invalidKeys = [];
+        foreach ($this->invalidKeyProvider() as $entry) {
+            $invalidKeys[] = $entry[0];
+        }
+
+        $cache->getMultiple($invalidKeys);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testSetMultipleThrowsOnNoArrayNoTraversable()
+    {
+        $cache = $this->create();
+        $cache->setMultiple(1234);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testSetMultipleThrowsOnNull()
+    {
+        $cache = $this->create();
+        $cache->setMultiple(null);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testSetMultipleThrowsOnInvalidKey()
+    {
+        $cache = $this->create();
+
+        $invalidKeys = [];
+        foreach ($this->invalidKeyProvider() as $entry) {
+            $invalidKeys[] = $entry[0];
+        }
+
+        $cache->setMultiple($invalidKeys);
+    }
+
+    public function testSetMultipleCreatesCacheFiles()
+    {
+        $cache = $this->create();
+
+        $cache->setMultiple([
+                                'test-1' => 1234,
+                                'test-2' => 'test',
+                                'test-3' => [10, 20, 30, 40, 50]
+                            ]);
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
     }
 }
 
