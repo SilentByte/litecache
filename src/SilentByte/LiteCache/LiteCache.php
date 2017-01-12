@@ -163,8 +163,8 @@ class LiteCache implements CacheInterface
      */
     public function __construct(array $config = null)
     {
-        $config = array_merge(self::DEFAULT_CONFIG,
-                              $config !== null ? $config : []);
+        $config = array_merge_recursive(self::DEFAULT_CONFIG,
+                                        $config !== null ? $config : []);
 
         $this->cacheDirectory = PathHelper::directory($config['directory']);
         $this->defaultTimeToLive = (int)$config['ttl'];

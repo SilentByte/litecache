@@ -93,8 +93,8 @@ class LiteCacheTest extends TestCase
             'ttl'       => LiteCache::EXPIRE_NEVER
         ];
 
-        $config = array_merge($defaultConfig,
-                              $config !== null ? $config : []);
+        $config = array_merge_recursive($defaultConfig,
+                                        $config !== null ? $config : []);
 
         return new LiteCache($config);
     }
