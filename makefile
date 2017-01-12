@@ -15,3 +15,6 @@ clean:
 docs:
 	phpdoc
 
+check:
+	@echo '---- (Checking unit tests) --------------------'
+	phpunit

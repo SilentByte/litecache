@@ -54,7 +54,8 @@ class LiteCacheTest extends TestCase
     public function create($config = null)
     {
         $defaultConfig = [
-            'directory' => vfsStream::url('cache/.litecache')
+            'directory' => vfsStream::url('cache/.litecache'),
+            'ttl'       => LiteCache::EXPIRE_NEVER
         ];
 
         $config = array_merge($defaultConfig,
@@ -122,6 +123,95 @@ class LiteCacheTest extends TestCase
     {
         $cache = $this->create();
         $cache->set($key, 'test');
+    }
+
+    public function testSetCreatesCacheFile()
+    {
+        $cache = $this->create();
+        $cache->set('test', 1234);
+
+        /** @noinspection SpellCheckingInspection */
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+    }
+
+    /**
+     * @expectedException \SilentByte\LiteCache\CacheArgumentException
+     */
+    public function testCacheThrowsOnEmptyKey()
+    {
+        $cache = $this->create();
+        $cache->cache('', function () {
+            return 1234;
+        });
+    }
+
+    /**
+     * @expectedException \TypeError
+     */
+    public function testCacheThrowsOnNullKey()
+    {
+        $cache = $this->create();
+        $cache->cache(null, function () {
+            return 1234;
+        });
+    }
+
+    public function testCacheExecutesProducerOnUncachedObject()
+    {
+        $cache = $this->create();
+
+        $executed = false;
+        $cache->cache('test', function () use (&$executed) {
+            $executed = true;
+            return 1234;
+        });
+
+        $this->assertTrue($executed);
+    }
+
+    public function testCacheIgnoresProducerOnUncachedObject()
+    {
+        $cache = $this->create();
+        $executed = false;
+
+        $cache->cache('test', function () {
+            return 1234;
+        }, LiteCache::EXPIRE_NEVER);
+
+        $cache->cache('test', function () use (&$executed) {
+            $executed = true;
+            return 5678;
+        }, LiteCache::EXPIRE_NEVER);
+
+        $this->assertFalse($executed);
+    }
+
+    /**
+     * @dataProvider keyObjectProvider
+     */
+    public function testCacheReturnsCachedObject($key, $object)
+    {
+        $cache = $this->create();
+        $cached = $cache->cache($key, function () use ($object) {
+            return $object;
+        });
+
+        $this->assertEquals($object, $cached);
+    }
+
+    public function testCacheCreatesCacheFile()
+    {
+        $cache = $this->create();
+        $cache->cache('test', function () {
+            return 1234;
+        });
+
+        /** @noinspection SpellCheckingInspection */
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
     }
 }
 

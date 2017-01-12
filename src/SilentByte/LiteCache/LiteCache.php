@@ -196,6 +196,14 @@ class LiteCache implements CacheInterface
         }
     }
 
+    /**
+     * Computes and returns the hash for the specified key.
+     * The hash is used to to name the cache file.
+     *
+     * @param string $key Unique name of the object.
+     *
+     * @return string
+     */
     private static function getKeyHash(string $key) : string
     {
         return md5($key);
@@ -248,6 +256,16 @@ class LiteCache implements CacheInterface
         return true;
     }
 
+    /**
+     * Exports the object into its cache file using 'var_export()'.
+     *
+     * @param string $key       Unique name of the object.
+     * @param mixed  $object    Actual value to be cached.
+     * @param int    $ttl       Time to live in seconds.
+     * @param int    $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return bool True on success, false on failure.
+     */
     private function writeCodeCache(string $key, $object, int $ttl, int $timestamp) : bool
     {
         $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
@@ -260,6 +278,16 @@ class LiteCache implements CacheInterface
         return $this->writeDataToFile($this->getCacheFileName($key), [$code]);
     }
 
+    /**
+     * Exports the object into its cache file using 'serialize()'.
+     *
+     * @param string $key       Unique name of the object.
+     * @param mixed  $object    Actual value to be cached.
+     * @param int    $ttl       Time to live in seconds.
+     * @param int    $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return bool True on success, false on failure.
+     */
     private function writeSerializedCache(string $key, $object, int $ttl, int $timestamp) : bool
     {
         $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
