@@ -107,6 +107,16 @@ class LiteCacheTest extends TestCase
         $this->assertEquals(0766, fileperms($cache->getCacheDirectory()) & 0777);
     }
 
+    public function testConstructorAcceptsDateInterval()
+    {
+        $interval = date_interval_create_from_date_string('10 seconds');
+        $cache = $this->create([
+                                   'ttl' => $interval
+                               ]);
+
+        $this->assertEquals(10, $cache->getDefaultTimeToLive());
+    }
+
     public function testGetReturnsNullForUncachedObjects()
     {
         $cache = $this->create();

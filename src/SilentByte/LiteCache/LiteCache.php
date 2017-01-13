@@ -160,7 +160,7 @@ class LiteCache implements CacheInterface
      *
      * @param array $config Passes in the user's cache configuration.
      *                      * directory: Defines the location where cache files are to be stored.
-     *                      * ttl: Default time to live for cache files in seconds.
+     *                      * ttl: Default time to live for cache files in seconds or a DateInterval object.
      */
     public function __construct(array $config = null)
     {
@@ -168,7 +168,7 @@ class LiteCache implements CacheInterface
                                           $config !== null ? $config : []);
 
         $this->cacheDirectory = PathHelper::directory($config['directory']);
-        $this->defaultTimeToLive = (int)$config['ttl'];
+        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
         PathHelper::makeDirectory($this->cacheDirectory, 0766);
     }
