@@ -186,14 +186,13 @@ class LiteCache implements CacheInterface
     {
         if ($ttl === null) {
             return $this->defaultTimeToLive;
+        } else if (is_string($ttl)) {
+            return self::dateIntervalToSeconds(DateInterval::createFromDateString($ttl));
+        } else if ($ttl instanceof DateInterval) {
+            return self::dateIntervalToSeconds($ttl);
         } else {
-            if ($ttl instanceof DateInterval) {
-                $ttl = self::dateIntervalToSeconds($ttl);
-                return $ttl;
-            } else {
-                $ttl = (int)$ttl;
-                return $ttl;
-            }
+            $ttl = (int)$ttl;
+            return $ttl;
         }
     }
 
