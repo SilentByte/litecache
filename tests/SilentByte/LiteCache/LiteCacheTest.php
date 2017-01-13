@@ -10,6 +10,7 @@ declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
+use DateInterval;
 use org\bovigo\vfs\vfsStream;
 use org\bovigo\vfs\visitor\vfsStreamStructureVisitor;
 use PHPUnit\Framework\TestCase;
@@ -105,6 +106,25 @@ class LiteCacheTest extends TestCase
 
         $this->assertTrue(file_exists($cache->getCacheDirectory()));
         $this->assertEquals(0766, fileperms($cache->getCacheDirectory()) & 0777);
+    }
+
+    public function testConstructorAcceptsDateInterval()
+    {
+        $interval = DateInterval::createFromDateString('10 seconds');
+        $cache = $this->create([
+                                   'ttl' => $interval
+                               ]);
+
+        $this->assertEquals(10, $cache->getDefaultTimeToLive());
+    }
+
+    public function testConstructorAcceptsDateIntervalString()
+    {
+        $cache = $this->create([
+                                   'ttl' => '10 seconds'
+                               ]);
+
+        $this->assertEquals(10, $cache->getDefaultTimeToLive());
     }
 
     public function testGetReturnsNullForUncachedObjects()
