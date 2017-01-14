@@ -15,6 +15,9 @@
     "autoload": {
         "psr-4": {"SilentByte\\LiteCache\\": "src/SilentByte/LiteCache"}
     },
+    "autoload-dev": {
+        "psr-4": {"SilentByte\\LiteCache\\": "tests/SilentByte/LiteCache"}
+    },
     "require": {
         "psr/simple-cache": "^1.0"
     },

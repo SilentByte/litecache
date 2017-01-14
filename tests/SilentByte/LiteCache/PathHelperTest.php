@@ -10,39 +10,34 @@ declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
-use org\bovigo\vfs\vfsStream;
 use PHPUnit\Framework\TestCase;
 
 class PathHelperTest extends TestCase
 {
-    private $vfs;
-
-    protected function setUp()
-    {
-        $this->vfs = vfsStream::setup('root');
-    }
+    use VirtualFileSystemTrait;
 
     public function testDirectoryStripsSlashes()
     {
-        $this->assertEquals('/test/directory',
-                            PathHelper::directory('/test/directory/'));
+        $this->assertEquals('/root/directory',
+                            PathHelper::directory('/root/directory/'));
     }
 
     public function testCombine()
     {
-        $expected = 'test' . DIRECTORY_SEPARATOR
+        $expected = 'root' . DIRECTORY_SEPARATOR
             . 'directory' . DIRECTORY_SEPARATOR
             . 'file.txt';
 
         $this->assertEquals($expected,
-                            PathHelper::combine('test',
+                            PathHelper::combine('root',
                                                 'directory',
                                                 'file.txt'));
     }
 
     public function testMakePathCreatesStructure()
     {
-        $path = vfsStream::url('root/test/directory');
+        $this->vfs();
+        $path = $this->url('root/test/directory');
 
         PathHelper::makePath($path, 777);
         $this->assertFileExists($path);
@@ -50,8 +45,9 @@ class PathHelperTest extends TestCase
 
     public function testMakePathCreatesDirectoryWithPermission()
     {
-        $path1 = vfsStream::url('root/test/directory1');
-        $path2 = vfsStream::url('root/test/directory2');
+        $this->vfs();
+        $path1 = $this->url('root/test/directory1');
+        $path2 = $this->url('root/test/directory2');
 
         PathHelper::makePath($path1, 0777);
         $this->assertEquals(0777, fileperms($path1) & 0777);
