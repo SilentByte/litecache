@@ -23,7 +23,14 @@ class FileProducerTest extends TestCase
 
     public function testInvokeReadsContents()
     {
+        $expected = "Test\n123456789\nabcdefghijklmnopqrstuvwxyz";
 
+        $this->file('test.txt', $expected);
+
+        $producer = new FileProducer($this->url('root/test.txt'));
+        $content = $producer();
+
+        $this->assertEquals($expected, $content);
     }
 }
 

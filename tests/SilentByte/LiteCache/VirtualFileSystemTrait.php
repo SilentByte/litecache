@@ -17,7 +17,7 @@ trait VirtualFileSystemTrait
 {
     private $vfs;
 
-    public function vfs()
+    protected function vfs()
     {
         if ($this->vfs) {
             return $this->vfs;
@@ -27,7 +27,7 @@ trait VirtualFileSystemTrait
         return $this->vfs;
     }
 
-    public function url($url)
+    protected function url($url)
     {
         return vfsStream::url($url);
     }
@@ -37,6 +37,13 @@ trait VirtualFileSystemTrait
         /** @noinspection PhpUndefinedMethodInspection */
         return vfsStream::inspect(new vfsStreamStructureVisitor(),
                                   $this->vfs())->getStructure();
+    }
+
+    protected function file($filename, $content = null)
+    {
+        vfsStream::newFile($filename)
+            ->at($this->vfs())
+            ->setContent($content);
     }
 }
 
