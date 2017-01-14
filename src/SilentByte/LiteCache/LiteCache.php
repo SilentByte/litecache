@@ -13,6 +13,7 @@ namespace SilentByte\LiteCache;
 use DateInterval;
 use DirectoryIterator;
 use Psr\SimpleCache\CacheInterface;
+use Throwable;
 use Traversable;
 
 /**
@@ -72,6 +73,39 @@ class LiteCache implements CacheInterface
     }
 
     /**
+     * Generates the header comment for cache file, which includes key, timestamp and TTL.
+     *
+     * @param string $key       Unique name of the object.
+     * @param int    $ttl       The object's time to live.
+     * @param int    $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return string Header comment.
+     */
+    private static function generateCacheFileComment(string $key, int $ttl, int $timestamp) : string
+    {
+        return self::escapeComment($key . ' ' . date('c', $timestamp) . ' ' . $ttl);
+    }
+
+    /**
+     * Generates a condition (resulting in a boolean) that indicates whether
+     * the cache file has expired or not.
+     *
+     * @param int $ttl       The object's time to live.
+     * @param int $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return string A string representing a valid PHP boolean condition.
+     */
+    private static function generateCacheFileExpirationCondition(int $ttl, int $timestamp) : string
+    {
+        if ($ttl === self::EXPIRE_NEVER) {
+            return 'false';
+        } else {
+            $relativeTtl = $timestamp + $ttl;
+            return "time() > {$relativeTtl}";
+        }
+    }
+
+    /**
      * Ensures that the specified string is valid cache key.
      * If this condition is not met, CacheArgumentException will be thrown.
      *
@@ -80,10 +114,10 @@ class LiteCache implements CacheInterface
      * @throws CacheArgumentException
      *     If the specified key is neither an array nor a Traversable.
      */
-    private static function ensureKeyValidity(string $key)
+    private static function ensureKeyValidity($key)
     {
         if (empty($key)) {
-            throw new CacheArgumentException("Key '${key}' is invalid.");
+            throw new CacheArgumentException('Key must not be null or empty.');
         }
     }
 
@@ -113,12 +147,12 @@ class LiteCache implements CacheInterface
      */
     private static function dateIntervalToSeconds(DateInterval $interval) : int
     {
-        return $interval->s                    // Seconds.
-        + ($interval->i * 60)                  // Minutes.
-        + ($interval->h * 60 * 60)             // Hours.
-        + ($interval->d * 60 * 60 * 24)        // Days.
-        + ($interval->m * 60 * 60 * 24 * 30)   // Months.
-        + ($interval->y * 60 * 60 * 24 * 365); // Years.
+        return ($interval->s                        // Seconds.
+            + ($interval->i * 60)                   // Minutes.
+            + ($interval->h * 60 * 60)              // Hours.
+            + ($interval->d * 60 * 60 * 24)         // Days.
+            + ($interval->m * 60 * 60 * 24 * 30)    // Months.
+            + ($interval->y * 60 * 60 * 24 * 365)); // Years.
     }
 
     /**
@@ -126,14 +160,15 @@ class LiteCache implements CacheInterface
      *
      * @param array $config Passes in the user's cache configuration.
      *                      * directory: Defines the location where cache files are to be stored.
-     *                      * ttl: Default time to live for cache files in seconds.
+     *                      * ttl: Default time to live for cache files in seconds or a DateInterval object.
      */
-    public function __construct(array $config)
+    public function __construct(array $config = null)
     {
-        $config = array_merge(self::DEFAULT_CONFIG, $config);
+        $config = array_replace_recursive(self::DEFAULT_CONFIG,
+                                          $config !== null ? $config : []);
 
         $this->cacheDirectory = PathHelper::directory($config['directory']);
-        $this->defaultTimeToLive = (int)$config['ttl'];
+        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
         PathHelper::makeDirectory($this->cacheDirectory, 0766);
     }
@@ -142,23 +177,36 @@ class LiteCache implements CacheInterface
      * Normalizes the given TTL (time to live) value to an integer representing
      * the number of seconds an object is to be cached.
      *
-     * @param null|int|DateInterval $ttl TTL value in seconds (or as a DateInterval) where null
-     *                                   indicates this cache instance's default TTL.
+     * @param null|int|string|DateInterval $ttl TTL value in seconds (or as a DateInterval) where null
+     *                                          indicates this cache instance's default TTL.
      *
      * @return int TTL in seconds.
      */
     private function normalizeTimeToLive($ttl) : int
     {
         if ($ttl === null) {
-            $ttl = $this->defaultTimeToLive;
-            return $ttl;
+            return $this->defaultTimeToLive;
+        } else if (is_string($ttl)) {
+            return self::dateIntervalToSeconds(DateInterval::createFromDateString($ttl));
         } else if ($ttl instanceof DateInterval) {
-            $ttl = self::dateIntervalToSeconds($ttl);
-            return $ttl;
+            return self::dateIntervalToSeconds($ttl);
         } else {
             $ttl = (int)$ttl;
             return $ttl;
         }
+    }
+
+    /**
+     * Computes and returns the hash for the specified key.
+     * The hash is used to to name the cache file.
+     *
+     * @param string $key Unique name of the object.
+     *
+     * @return string
+     */
+    private static function getKeyHash(string $key) : string
+    {
+        return md5($key);
     }
 
     /**
@@ -170,11 +218,98 @@ class LiteCache implements CacheInterface
      */
     private function getCacheFileName(string $key) : string
     {
-        $hash = md5($key);
+        $hash = self::getKeyHash($key);
         $cacheFileName = PathHelper::combine($this->cacheDirectory,
-                                             $hash . '.php');
+                                             $hash . '.litecache.php');
 
         return $cacheFileName;
+    }
+
+    /**
+     * Writes data into the specified file using an exclusive lock.
+     *
+     * @param string   $filename Target filename.
+     * @param string[] $parts    Array of strings, where each entry will be written
+     *                           into the file in consecutive order.
+     *
+     * @return bool True on success and false on failure.
+     *
+     */
+    private function writeDataToFile(string $filename, array $parts) : bool
+    {
+        if (!$fp = @fopen($filename, 'c')) {
+            return false;
+        }
+
+        if (flock($fp, LOCK_EX)) {
+            ftruncate($fp, 0);
+
+            foreach ($parts as $part) {
+                fwrite($fp, $part);
+            }
+
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+
+        fclose($fp);
+        return true;
+    }
+
+    /**
+     * Exports the object into its cache file using 'var_export()'.
+     *
+     * @param string $key       Unique name of the object.
+     * @param mixed  $object    Actual value to be cached.
+     * @param int    $ttl       Time to live in seconds.
+     * @param int    $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return bool True on success, false on failure.
+     */
+    private function writeCodeCache(string $key, $object, int $ttl, int $timestamp) : bool
+    {
+        $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
+        $condition = self::generateCacheFileExpirationCondition($ttl, $timestamp);
+
+        $export = var_export($object, true);
+        $code = "<?php /* {$comment} */" . PHP_EOL
+            . "return ({$condition}) ? null : [{$export}];";
+
+        return $this->writeDataToFile($this->getCacheFileName($key), [$code]);
+    }
+
+    /**
+     * Exports the object into its cache file using 'serialize()'.
+     *
+     * @param string $key       Unique name of the object.
+     * @param mixed  $object    Actual value to be cached.
+     * @param int    $ttl       Time to live in seconds.
+     * @param int    $timestamp Indicates at what point in time the object has been stored.
+     *
+     * @return bool True on success, false on failure.
+     */
+    private function writeSerializedCache(string $key, $object, int $ttl, int $timestamp) : bool
+    {
+        $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
+        $condition = self::generateCacheFileExpirationCondition($ttl, $timestamp);
+
+        $code = "<?php /* {$comment} */" . PHP_EOL
+            . "return ({$condition}) ? null : (function() {" . PHP_EOL
+            . "    static \$data = null;" . PHP_EOL
+            . "    if(\$data) {" . PHP_EOL
+            . "        return \$data;" . PHP_EOL
+            . "    } else {" . PHP_EOL
+            . "        \$data = [unserialize(file_get_contents(__FILE__," . PHP_EOL
+            . "                                                false," . PHP_EOL
+            . "                                                null," . PHP_EOL
+            . "                                                __COMPILER_HALT_OFFSET__))];" . PHP_EOL
+            . "        return \$data;" . PHP_EOL
+            . "    }" . PHP_EOL
+            . "})();" . PHP_EOL
+            . "__halt_compiler();";
+
+        return $this->writeDataToFile($this->getCacheFileName($key),
+                                      [$code, serialize($object)]);
     }
 
     /**
@@ -186,21 +321,19 @@ class LiteCache implements CacheInterface
      *
      * @return bool True on success and false on failure.
      */
-    private function storeObject(string $key, $object, int $ttl)
+    private function storeObject(string $key, $object, int $ttl) : bool
     {
-        $cacheFileName = $this->getCacheFileName($key);
-
-        $data = '<?php /* ' . self::escapeComment($key) . ' ' . date('c') . ' */' . PHP_EOL
-            . 'use SilentByte\LiteCache\CacheObject as stdClass;' . PHP_EOL;
-
-        if ($ttl === self::EXPIRE_NEVER) {
-            $data .= 'return [' . var_export($object, true) . '];';
+        // TODO: Distinguish between complex and simple objects.
+        if ($object === null
+            || is_bool($object)
+            || is_int($object)
+            || is_float($object)
+            || is_string($object)
+        ) {
+            return $this->writeCodeCache($key, $object, $ttl, time());
         } else {
-            $relativeTtl = time() + (int)$ttl;
-            $data .= "return time() > $relativeTtl ? null : [" . var_export($object, true) . '];';
+            return $this->writeSerializedCache($key, $object, $ttl, time());
         }
-
-        return @file_put_contents($cacheFileName, $data, LOCK_EX) !== false;
     }
 
     /**
@@ -224,6 +357,26 @@ class LiteCache implements CacheInterface
         // Actual value is wrapped in an array in order to distinguish
         // between 'include' returning FALSE and FALSE as a value.
         return $value[0];
+    }
+
+    /**
+     * Gets the user defined cache directory.
+     *
+     * @return string
+     */
+    public function getCacheDirectory() : string
+    {
+        return $this->cacheDirectory;
+    }
+
+    /**
+     * Gets the user defined default TTL (time to live) in seconds.
+     *
+     * @return int
+     */
+    public function getDefaultTimeToLive() : int
+    {
+        return $this->defaultTimeToLive;
     }
 
     /**
@@ -252,11 +405,11 @@ class LiteCache implements CacheInterface
     /**
      * Persists data in the cache, uniquely referenced by a key with an optional expiration TTL time.
      *
-     * @param string                $key   The key of the item to store.
-     * @param mixed                 $value The value of the item to store, must be serializable.
-     * @param null|int|DateInterval $ttl   Optional. The TTL value of this item. If no value is sent and
-     *                                     the driver supports TTL then the library may set a default value
-     *                                     for it or let the driver take care of that.
+     * @param string                       $key   The key of the item to store.
+     * @param mixed                        $value The value of the item to store, must be serializable.
+     * @param null|int|string|DateInterval $ttl   Optional. The TTL value of this item. If no value is sent and
+     *                                            the driver supports TTL then the library may set a default value
+     *                                            for it or let the driver take care of that.
      *
      * @return bool True on success and false on failure.
      *
@@ -277,15 +430,18 @@ class LiteCache implements CacheInterface
      * been previously cached or the cache file has expired, the specified producer will be
      * called and the new version will be cached and returned.
      *
-     * @param string                $key        Unique name of the object.
-     * @param callable              $producer   Producer that will be called to generate the data
-     *                                          if the cached object has expired.
-     * @param null|int|DateInterval $ttl        The TTL (time to live) value for the object.
+     * @param string                       $key      Unique name of the object.
+     * @param callable                     $producer Producer that will be called to generate the data
+     *                                               if the cached object has expired.
+     * @param null|int|string|DateInterval $ttl      The TTL (time to live) value for the object.
      *
      * @return mixed The cached object or a newly created version if it has expired.
      *
      * @throws CacheArgumentException
      *     If the object could not be cached or loaded.
+     *
+     * @throws CacheProducerException
+     *     If the specified producers throws an exception.
      */
     public function cache(string $key, callable $producer, $ttl = null)
     {
@@ -296,13 +452,16 @@ class LiteCache implements CacheInterface
             // Object's still in cache and has not expired.
             return $object;
         } else {
-            // If object is not cached or has expired, call producer to obtain
-            // the new value and subsequently cache it.
-            $object = $producer();
 
-            $ttl = $this->normalizeTimeToLive($ttl);
-            $this->storeObject($key, $object, $ttl);
+            try {
+                // If object is not cached or has expired, call producer to obtain
+                // the new value and subsequently cache it.
+                $object = $producer();
+            } catch (Throwable $t) {
+                throw new CacheProducerException($t);
+            }
 
+            $this->set($key, $object, $ttl);
             return $object;
         }
     }
@@ -312,7 +471,8 @@ class LiteCache implements CacheInterface
      *
      * @param string $key The unique cache key of the item to delete.
      *
-     * @return bool True if the item was successfully removed. False if there was an error.
+     * @return bool True if the item was successfully removed.
+     *              False if there was an error.
      *
      * @throws \Psr\SimpleCache\InvalidArgumentException
      *     MUST be thrown if the $key string is not a legal value.
@@ -335,9 +495,12 @@ class LiteCache implements CacheInterface
         $iterator = new DirectoryIterator($this->cacheDirectory);
 
         foreach ($iterator as $file) {
-            if (!$file->isDot() && $file->getExtension() === 'php') {
-                if (!unlink($file->getPathname()))
+            if (!$file->isDot()
+                && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
+            ) {
+                if (!unlink($file->getPathname())) {
                     return false;
+                }
             }
         }
 
@@ -348,10 +511,10 @@ class LiteCache implements CacheInterface
     /**
      * Obtains multiple cache items by their unique keys.
      *
-     * @param iterable $keys    A list of keys that can obtained in a single operation.
-     * @param mixed    $default Default value to return for keys that do not exist.
+     * @param mixed $keys    A list of keys that can obtained in a single operation.
+     * @param mixed $default Default value to return for keys that do not exist.
      *
-     * @return iterable A list of key => value pairs. Cache keys that do not exist or are stale will have $default as value.
+     * @return mixed A list of key => value pairs. Cache keys that do not exist or are stale will have $default as value.
      *
      * @throws \Psr\SimpleCache\InvalidArgumentException
      *     MUST be thrown if $keys is neither an array nor a Traversable,
@@ -373,10 +536,10 @@ class LiteCache implements CacheInterface
     /**
      * Persists a set of key => value pairs in the cache, with an optional TTL.
      *
-     * @param iterable              $values A list of key => value pairs for a multiple-set operation.
-     * @param null|int|DateInterval $ttl    Optional. The TTL value of this item. If no value is sent and
-     *                                      the driver supports TTL then the library may set a default value
-     *                                      for it or let the driver take care of that.
+     * @param mixed                        $values A list of key => value pairs for a multiple-set operation.
+     * @param null|int|string|DateInterval $ttl    Optional. The TTL value of this item. If no value is sent and
+     *                                             the driver supports TTL then the library may set a default value
+     *                                             for it or let the driver take care of that.
      *
      * @return bool True on success and false on failure.
      *
@@ -397,7 +560,7 @@ class LiteCache implements CacheInterface
     /**
      * Deletes multiple cache items in a single operation.
      *
-     * @param iterable $keys A list of string-based keys to be deleted.
+     * @param mixed $keys A list of string-based keys to be deleted.
      *
      * @return bool True if the items were successfully removed. False if there was an error.
      *
@@ -410,8 +573,12 @@ class LiteCache implements CacheInterface
         self::ensureArrayOrTraversable($keys);
 
         foreach ($keys as $key) {
-            $this->delete($key);
+            if (!$this->delete($key)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     /**
