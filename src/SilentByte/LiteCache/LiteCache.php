@@ -197,7 +197,7 @@ class LiteCache implements CacheInterface
         $this->pool = $config['pool'];
         $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
-        PathHelper::makeDirectory($this->cacheDirectory, 0766);
+        PathHelper::makePath($this->cacheDirectory, 0766);
     }
 
     /**

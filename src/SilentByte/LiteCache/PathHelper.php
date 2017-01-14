@@ -52,13 +52,13 @@ final class PathHelper
     }
 
     /**
-     * Creates a directory recursively at the specified path with
-     * the given permissions.
+     * Creates a directory structure recursively at the specified path
+     * with the given permissions.
      *
      * @param string $path        Location of the directory.
      * @param int    $permissions Permissions to be set for the directory.
      */
-    public static function makeDirectory(string $path, int $permissions)
+    public static function makePath(string $path, int $permissions)
     {
         // Nothing to do if directory already exists.
         if (is_dir($path)) {
