@@ -18,6 +18,9 @@ namespace SilentByte\LiteCache;
  */
 class OutputProducer
 {
+    /**
+     * @var callable
+     */
     private $producer;
 
     /**

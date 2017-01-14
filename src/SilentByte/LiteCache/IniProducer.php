@@ -20,6 +20,9 @@ use RuntimeException;
  */
 class IniProducer
 {
+    /**
+     * @var string
+     */
     private $filename;
 
     /**

@@ -582,8 +582,12 @@ class LiteCache implements CacheInterface
         self::ensureArrayOrTraversable($values);
 
         foreach ($values as $key => $value) {
-            $this->set($key, $value, $ttl);
+            if (!$this->set($key, $value, $ttl)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     /** @noinspection PhpUndefinedClassInspection */

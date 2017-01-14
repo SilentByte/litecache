@@ -20,6 +20,9 @@ use RuntimeException;
  */
 class FileProducer
 {
+    /**
+     * @var string
+     */
     private $filename;
 
     /**

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<psalm name="Psalm Config for LiteCache"
+       stopOnFirstError="false"
+       useDocblockTypes="true"
+       totallyTyped="false">
+    <projectFiles>
+        <directory name="src" />
+    </projectFiles>
+    <issueHandlers>
+        <MethodSignatureMismatch errorLevel="info" />
+        <InvalidDocblock errorLevel="info" />
+        <MissingReturnType errorLevel="info" />
+        <DeprecatedMethod errorLevel="info" />
+        <FailedTypeResolution errorLevel="info" />
+    </issueHandlers>
+</psalm>
