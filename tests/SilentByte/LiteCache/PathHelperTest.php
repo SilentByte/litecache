@@ -16,6 +16,11 @@ class PathHelperTest extends TestCase
 {
     use VirtualFileSystemTrait;
 
+    protected function setUp()
+    {
+        $this->vfs();
+    }
+
     public function testDirectoryStripsSlashes()
     {
         $this->assertEquals('/root/directory',
@@ -36,7 +41,6 @@ class PathHelperTest extends TestCase
 
     public function testMakePathCreatesStructure()
     {
-        $this->vfs();
         $path = $this->url('root/test/directory');
 
         PathHelper::makePath($path, 777);
@@ -45,7 +49,6 @@ class PathHelperTest extends TestCase
 
     public function testMakePathCreatesDirectoryWithPermission()
     {
-        $this->vfs();
         $path1 = $this->url('root/test/directory1');
         $path2 = $this->url('root/test/directory2');
 
