@@ -12,6 +12,7 @@ namespace SilentByte\LiteCache;
 
 use Exception;
 use Psr\SimpleCache\CacheException as PsrCacheException;
+use Throwable;
 
 /**
  * Base class for all cache related exceptions.
@@ -25,10 +26,10 @@ class CacheException extends Exception
      * Creates the exception object.
      *
      * @param string         $message  Message indicating what caused the exception.
-     * @param Exception|null $previous The exception that was the cause of this cache exception.
+     * @param Throwable|null $previous The exception that was the cause of this cache exception.
      */
     public function __construct(string $message,
-                                Exception $previous = null)
+                                Throwable $previous = null)
     {
         parent::__construct($message, 0, $previous);
     }
