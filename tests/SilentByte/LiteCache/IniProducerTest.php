@@ -12,7 +12,7 @@ namespace SilentByte\LiteCache;
 
 use PHPUnit\Framework\TestCase;
 
-class FileProducerTest extends TestCase
+class IniProducerTest extends TestCase
 {
     use VirtualFileSystemTrait;
 
@@ -23,11 +23,23 @@ class FileProducerTest extends TestCase
 
     public function testInvokeReadsContents()
     {
-        $expected = "Test\n123456789\nabcdefghijklmnopqrstuvwxyz";
+        $expected = [
+            'server' => [
+                'host'     => 'myhost.test.com',
+                'user'     => 'root',
+                'password' => 'root'
+            ]
+        ];
 
-        $this->file('test.txt', $expected);
+        $ini
+            = "[server]\n"
+            . "host = myhost.test.com\n"
+            . "user = root\n"
+            . "password = root\n";
 
-        $producer = new FileProducer($this->url('root/test.txt'));
+        $this->file('test.ini', $ini);
+
+        $producer = new IniProducer($this->url('root/test.ini'));
         $actual = $producer();
 
         $this->assertEquals($expected, $actual);
