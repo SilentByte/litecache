@@ -197,7 +197,7 @@ class LiteCache implements CacheInterface
         $this->pool = $config['pool'];
         $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
-        PathHelper::makeDirectory($this->cacheDirectory, 0766);
+        PathHelper::makePath($this->cacheDirectory, 0766);
     }
 
     /**
@@ -582,8 +582,12 @@ class LiteCache implements CacheInterface
         self::ensureArrayOrTraversable($values);
 
         foreach ($values as $key => $value) {
-            $this->set($key, $value, $ttl);
+            if (!$this->set($key, $value, $ttl)) {
+                return false;
+            }
         }
+
+        return true;
     }
 
     /** @noinspection PhpUndefinedClassInspection */

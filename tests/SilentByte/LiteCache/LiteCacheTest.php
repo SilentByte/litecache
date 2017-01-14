@@ -11,25 +11,16 @@ declare(strict_types = 1);
 namespace SilentByte\LiteCache;
 
 use DateInterval;
-use org\bovigo\vfs\vfsStream;
-use org\bovigo\vfs\visitor\vfsStreamStructureVisitor;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
 class LiteCacheTest extends TestCase
 {
-    private $vfs;
+    use VirtualFileSystemTrait;
 
     protected function setUp()
     {
-        $this->vfs = vfsStream::setup('cache');
-    }
-
-    protected function getVfsDirectoryStructure()
-    {
-        /** @noinspection PhpUndefinedMethodInspection */
-        return vfsStream::inspect(new vfsStreamStructureVisitor(),
-                                  $this->vfs)->getStructure();
+        $this->vfs();
     }
 
     public function invalidKeyProvider()
@@ -90,7 +81,7 @@ class LiteCacheTest extends TestCase
     public function create($config = null)
     {
         $defaultConfig = [
-            'directory' => vfsStream::url('cache/.litecache'),
+            'directory' => $this->url('root/.litecache'),
             'pool'      => 'test-pool',
             'ttl'       => LiteCache::EXPIRE_NEVER
         ];
@@ -318,12 +309,12 @@ class LiteCacheTest extends TestCase
         $cache->set('bbb', 'test');
         $cache->set('ccc', 3.1415);
 
-        $this->assertNotEmpty($this->getVfsDirectoryStructure()
-                              ['cache']['.litecache']);
+        $this->assertNotEmpty($this->tree()
+                              ['root']['.litecache']);
         $cache->clear();
 
-        $this->assertEmpty($this->getVfsDirectoryStructure()
-                           ['cache']['.litecache']);
+        $this->assertEmpty($this->tree()
+                           ['root']['.litecache']);
     }
 
     public function testGetMultipleReturnsNullForUncachedObjects()

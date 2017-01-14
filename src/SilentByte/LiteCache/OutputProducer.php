@@ -10,6 +10,8 @@ declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
+use Throwable;
+
 /**
  * Provides the ability to cache the output stream
  * and subsequently cache it.
@@ -18,6 +20,9 @@ namespace SilentByte\LiteCache;
  */
 class OutputProducer
 {
+    /**
+     * @var callable
+     */
     private $producer;
 
     /**
@@ -34,6 +39,10 @@ class OutputProducer
      * Executes the producer, buffers its output and returns it.
      *
      * @return mixed The buffered content that has been written onto the output stream.
+     *
+     * @throws Throwable
+     *     If the user defined callable throws an exception,
+     *     it will be re-thrown by this producer.
      */
     public function __invoke()
     {
@@ -42,8 +51,13 @@ class OutputProducer
         if (!ob_start()) {
             return null;
         } else {
-            $producer();
-            return ob_get_clean();
+            try {
+                $producer();
+                return ob_get_clean();
+            } catch (Throwable $t) {
+                ob_end_clean();
+                throw new CacheProducerException($t);
+            }
         }
     }
 }
