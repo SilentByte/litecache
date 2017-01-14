@@ -91,6 +91,7 @@ class LiteCacheTest extends TestCase
     {
         $defaultConfig = [
             'directory' => vfsStream::url('cache/.litecache'),
+            'pool'      => 'test-pool',
             'ttl'       => LiteCache::EXPIRE_NEVER
         ];
 
@@ -187,7 +188,7 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
     /**
@@ -264,7 +265,7 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
     public function testDeleteReturnsFalseOnUncachedObject()
@@ -282,7 +283,7 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileNotExists($cache->getCacheDirectory()
                                    . DIRECTORY_SEPARATOR
-                                   . '098f6bcd4621d373cade4e832627b4f6.litecache.php');
+                                   . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
     public function testDeleteReturnsTrueOnSuccess()
@@ -453,15 +454,15 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+                                . 'f425e4c8be7aa01ce1c5fa66bf952063.litecache.php');
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+                                . 'b649716a3762d4c08c9d28c81d49c4e6.litecache.php');
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
+                                . 'b3854bb80182bcf8d75b7f5bb9010fab.litecache.php');
     }
 
     public function testDeleteMultipleReturnsFalseOnUncachedObject()

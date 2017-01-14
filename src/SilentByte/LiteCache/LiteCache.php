@@ -41,6 +41,7 @@ class LiteCache implements CacheInterface
      */
     const DEFAULT_CONFIG = [
         'directory' => '.litecache',
+        'pool'      => 'default',
         'ttl'       => LiteCache::EXPIRE_NEVER
     ];
 
@@ -50,6 +51,13 @@ class LiteCache implements CacheInterface
      * @var string
      */
     private $cacheDirectory;
+
+    /**
+     * User defined pool for this instance.
+     *
+     * @var string
+     */
+    private $pool;
 
     /**
      * User defined default time to live in seconds.
@@ -102,6 +110,22 @@ class LiteCache implements CacheInterface
         } else {
             $relativeTtl = $timestamp + $ttl;
             return "time() > {$relativeTtl}";
+        }
+    }
+
+    /**
+     * Ensures that the specified pool name is valid.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param string $pool Pool name to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified pool name is invalid.
+     */
+    private static function ensurePoolNameValidity($pool)
+    {
+        if (empty($pool)) {
+            throw new CacheArgumentException('Pool name must not be null or empty');
         }
     }
 
@@ -167,7 +191,10 @@ class LiteCache implements CacheInterface
         $config = array_replace_recursive(self::DEFAULT_CONFIG,
                                           $config !== null ? $config : []);
 
+        self::ensurePoolNameValidity($config['pool']);
+
         $this->cacheDirectory = PathHelper::directory($config['directory']);
+        $this->pool = $config['pool'];
         $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
         PathHelper::makeDirectory($this->cacheDirectory, 0766);
@@ -204,9 +231,12 @@ class LiteCache implements CacheInterface
      *
      * @return string
      */
-    private static function getKeyHash(string $key) : string
+    private function getKeyHash(string $key) : string
     {
-        return md5($key);
+        // Add extra character in order to avoid an overlap between pool
+        // and key. Pool 'ab' and key 'xy' would otherwise be indistinguishable
+        // from pool 'a' and key 'bxy'.
+        return md5($this->pool . '|' . $key);
     }
 
     /**
@@ -218,7 +248,7 @@ class LiteCache implements CacheInterface
      */
     private function getCacheFileName(string $key) : string
     {
-        $hash = self::getKeyHash($key);
+        $hash = $this->getKeyHash($key);
         $cacheFileName = PathHelper::combine($this->cacheDirectory,
                                              $hash . '.litecache.php');
 
