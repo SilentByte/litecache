@@ -119,6 +119,36 @@ class LiteCacheTest extends TestCase
         $this->assertEquals(10, $cache->getDefaultTimeToLive());
     }
 
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testConstructorThrowsOnInvalidLogger()
+    {
+        $this->create([
+                          'logger' => 1234
+                      ]);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testConstructorThrowsOnInvalidTimeToLive()
+    {
+        $this->create([
+                          'ttl' => 'invalid'
+                      ]);
+    }
+
+    /**
+     * @expectedException \Psr\SimpleCache\InvalidArgumentException
+     */
+    public function testConstructorThrowsOnInvalidCacheDirectory()
+    {
+        $this->create([
+                          'directory' => null
+                      ]);
+    }
+
     public function testGetReturnsNullForUncachedObjects()
     {
         $cache = $this->create();
