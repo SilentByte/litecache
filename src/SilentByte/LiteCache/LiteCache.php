@@ -445,8 +445,7 @@ class LiteCache implements CacheInterface
     private function storeObject(string $key, $object, int $ttl) : bool
     {
         // TODO: Distinguish between complex and simple objects.
-        if ($object === null
-            || is_bool($object)
+        if (is_bool($object)
             || is_int($object)
             || is_float($object)
             || is_string($object)
@@ -549,6 +548,13 @@ class LiteCache implements CacheInterface
     public function set($key, $value, $ttl = null)
     {
         self::ensureKeyValidity($key);
+
+        // According to PSR-16, it is not possible to distinguish between
+        // null and a cache miss; there is no need to store null.
+        if ($value === null) {
+            $this->logger->info('Object {key} skipped (was null).', ['key' => $key]);
+            return true;
+        }
 
         $ttl = $this->normalizeTimeToLive($ttl);
         $result = $this->storeObject($key, $value, $ttl);
