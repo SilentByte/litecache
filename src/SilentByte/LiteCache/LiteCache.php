@@ -124,72 +124,6 @@ class LiteCache implements CacheInterface
     }
 
     /**
-     * Ensures that the specified pool name is valid.
-     * If this condition is not met, CacheArgumentException will be thrown.
-     *
-     * @param string $pool Pool name to be checked.
-     *
-     * @throws CacheArgumentException
-     *     If the specified pool name is invalid.
-     */
-    private static function ensurePoolNameValidity($pool)
-    {
-        if (empty($pool)) {
-            throw new CacheArgumentException('Pool name must not be null or empty');
-        }
-    }
-
-    /**
-     * Ensures that the specified logger is valid, i.e. an instance of a class
-     * implementing Psr\Log\LoggerInterface, or null.
-     *
-     * @param LoggerInterface|null $logger Logger to be checked.
-     *
-     * @throws CacheArgumentException
-     *     If the specified logger is neither null nor an instance of a class
-     *     implementing LoggerInterface.
-     */
-    private static function ensureLoggerValidity($logger)
-    {
-        if ($logger !== null && !($logger instanceof LoggerInterface)) {
-            throw new CacheArgumentException('The specified logger must be an instance'
-                                             . ' of Psr\Log\LoggerInterface or null.');
-        }
-    }
-
-    /**
-     * Ensures that the specified string is valid cache key.
-     * If this condition is not met, CacheArgumentException will be thrown.
-     *
-     * @param mixed $key Key to be checked.
-     *
-     * @throws CacheArgumentException
-     *     If the specified key is neither an array nor a Traversable.
-     */
-    private static function ensureKeyValidity($key)
-    {
-        if (empty($key)) {
-            throw new CacheArgumentException('Key must not be null or empty.');
-        }
-    }
-
-    /**
-     * Ensures that the specified argument is either an array or an instance of Traversable.
-     * If these conditions are not met, CacheArgumentException will be thrown.
-     *
-     * @param mixed $argument Argument to be checked.
-     *
-     * @throws CacheArgumentException
-     *     If the specified argument is neither an array nor a Traversable.
-     */
-    private static function ensureArrayOrTraversable($argument)
-    {
-        if (!is_array($argument) && !$argument instanceof Traversable) {
-            throw new CacheArgumentException('Argument is neither an array nor a Traversable.');
-        }
-    }
-
-    /**
      * Converts the specified DateInterval instance to a value indicating
      * the number of seconds within that interval.
      *
@@ -219,15 +153,137 @@ class LiteCache implements CacheInterface
         $config = array_replace_recursive(self::DEFAULT_CONFIG,
                                           $config !== null ? $config : []);
 
-        self::ensurePoolNameValidity($config['pool']);
         self::ensureLoggerValidity($config['logger']);
-
-        $this->cacheDirectory = PathHelper::directory($config['directory']);
-        $this->pool = $config['pool'];
-        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
         $this->logger = $config['logger'] ?: new NullLogger();
 
+        self::ensurePoolNameValidity($config['pool']);
+        $this->pool = $config['pool'];
+
+        self::ensureTimeToLiveValidity($config['ttl']);
+        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
+
+        self::ensureCacheDirectoryValidity($config['directory']);
+        $this->cacheDirectory = PathHelper::directory($config['directory']);
+
         PathHelper::makePath($this->cacheDirectory, 0766);
+    }
+
+    /**
+     * Ensures that the specified logger is valid, i.e. an instance of a class
+     * implementing Psr\Log\LoggerInterface, or null.
+     *
+     * @param LoggerInterface|null $logger Logger to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified logger is neither null nor an instance of a class
+     *     implementing LoggerInterface.
+     */
+    private function ensureLoggerValidity($logger)
+    {
+        if ($logger !== null && !($logger instanceof LoggerInterface)) {
+            throw new CacheArgumentException('The specified logger must be an instance'
+                                             . ' of Psr\Log\LoggerInterface or null.');
+        }
+    }
+
+    /**
+     * Ensures that the specified pool name is valid.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param string $pool Pool name to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified pool name is invalid.
+     */
+    private function ensurePoolNameValidity($pool)
+    {
+        if (empty($pool)) {
+            $this->logger->error('Pool name {pool} is invalid.', ['pool' => $pool]);
+            throw new CacheArgumentException('Pool name must not be null or empty');
+        }
+    }
+
+    /**
+     * Ensures that the specified time to live is valid.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param null|int|string|DateInterval $ttl TTL value in seconds (or as a DateInterval) where null
+     *                                          indicates this cache instance's default TTL.
+     *
+     * @throws CacheArgumentException
+     *     If the specified TTL is invalid.
+     */
+    private function ensureTimeToLiveValidity($ttl)
+    {
+        if ($ttl === null
+            || is_int($ttl)
+        ) {
+            return;
+        }
+
+        if (is_string($ttl)
+            && strtotime($ttl) !== false
+        ) {
+            return;
+        }
+
+        if ($ttl instanceof DateInterval) {
+            return;
+        }
+
+        $this->logger->error('TTL {ttl} is invalid.', ['ttl' => $ttl]);
+        throw new CacheArgumentException('Time to live is invalid.');
+    }
+
+    /**
+     * Ensures that the specified cache directory is valid.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param string $directory Cache directory.
+     *
+     * @throws CacheArgumentException
+     *     If the specified cache directory is invalid.
+     */
+    private function ensureCacheDirectoryValidity($directory)
+    {
+        if (empty($directory)) {
+            $this->logger->error('Directory {directory} is invalid.', ['directory' => $directory]);
+            throw new CacheArgumentException('The cache directory is invalid.');
+        }
+    }
+
+    /**
+     * Ensures that the specified string is valid cache key.
+     * If this condition is not met, CacheArgumentException will be thrown.
+     *
+     * @param mixed $key Key to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified key is neither an array nor a Traversable.
+     */
+    private function ensureKeyValidity($key)
+    {
+        if (empty($key)) {
+            $this->logger->error('Key {key} is invalid.', ['key' => $key]);
+            throw new CacheArgumentException('Key must not be null or empty.');
+        }
+    }
+
+    /**
+     * Ensures that the specified argument is either an array or an instance of Traversable.
+     * If these conditions are not met, CacheArgumentException will be thrown.
+     *
+     * @param mixed $argument Argument to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified argument is neither an array nor a Traversable.
+     */
+    private function ensureArrayOrTraversable($argument)
+    {
+        if (!is_array($argument) && !$argument instanceof Traversable) {
+            $this->logger->error('Argument is neither an array nor a Traversable');
+            throw new CacheArgumentException('Argument is neither an array nor a Traversable.');
+        }
     }
 
     /**
@@ -298,10 +354,15 @@ class LiteCache implements CacheInterface
     private function writeDataToFile(string $filename, array $parts) : bool
     {
         if (!$fp = @fopen($filename, 'c')) {
+            $this->logger->error('File {filename} could not be opened.', ['filename' => $filename]);
             return false;
         }
 
-        if (flock($fp, LOCK_EX)) {
+        if (!flock($fp, LOCK_EX)) {
+            $this->logger->error('Lock on file {filename} could not be acquired.', ['filename' => $filename]);
+            fclose($fp);
+            return false;
+        } else {
             ftruncate($fp, 0);
 
             foreach ($parts as $part) {
@@ -390,10 +451,16 @@ class LiteCache implements CacheInterface
             || is_float($object)
             || is_string($object)
         ) {
-            return $this->writeCodeCache($key, $object, $ttl, time());
+            $result = $this->writeCodeCache($key, $object, $ttl, time());
         } else {
-            return $this->writeSerializedCache($key, $object, $ttl, time());
+            $result = $this->writeSerializedCache($key, $object, $ttl, time());
         }
+
+        if (!$result) {
+            $this->logger->error('Object {key} could not be cached.', ['key' => $key]);
+        }
+
+        return $result;
     }
 
     /**
@@ -410,6 +477,8 @@ class LiteCache implements CacheInterface
         /** @noinspection PhpIncludeInspection */
         $value = @include($cacheFileName);
         if (!$value) {
+            $this->logger->notice('Cache miss on object {key}.', ['key' => $key]);
+
             // As per PSR-16, cache misses result in null.
             return null;
         }
@@ -459,6 +528,7 @@ class LiteCache implements CacheInterface
             return $default;
         }
 
+        $this->logger->info('Object {key} loaded from cache.', ['key' => $key]);
         return $object;
     }
 
@@ -481,7 +551,13 @@ class LiteCache implements CacheInterface
         self::ensureKeyValidity($key);
 
         $ttl = $this->normalizeTimeToLive($ttl);
-        return $this->storeObject($key, $value, $ttl);
+        $result = $this->storeObject($key, $value, $ttl);
+
+        if ($result) {
+            $this->logger->info('Object {key} cached.', ['key' => $key]);
+        }
+
+        return $result;
     }
 
     /**
@@ -518,6 +594,7 @@ class LiteCache implements CacheInterface
                 // the new value and subsequently cache it.
                 $object = $producer();
             } catch (Throwable $t) {
+                $this->logger->error('Producer for {key} has thrown an exception.', ['key' => $key]);
                 throw new CacheProducerException($t);
             }
 
@@ -542,7 +619,12 @@ class LiteCache implements CacheInterface
         self::ensureKeyValidity($key);
 
         $cacheFileName = $this->getCacheFileName($key);
-        return @unlink($cacheFileName);
+        if (!@unlink($cacheFileName)) {
+            $this->logger->error('Object {key} could not be deleted.', ['key' => $key]);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -559,6 +641,8 @@ class LiteCache implements CacheInterface
                 && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
             ) {
                 if (!unlink($file->getPathname())) {
+                    $this->logger->error('Cache file {filename} could not be deleted.',
+                                         ['filename' => $file->getFilename()]);
                     return false;
                 }
             }
