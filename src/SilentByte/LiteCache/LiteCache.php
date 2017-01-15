@@ -12,6 +12,8 @@ namespace SilentByte\LiteCache;
 
 use DateInterval;
 use DirectoryIterator;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 use Throwable;
 use Traversable;
@@ -42,7 +44,8 @@ class LiteCache implements CacheInterface
     const DEFAULT_CONFIG = [
         'directory' => '.litecache',
         'pool'      => 'default',
-        'ttl'       => LiteCache::EXPIRE_NEVER
+        'ttl'       => LiteCache::EXPIRE_NEVER,
+        'logger'    => null
     ];
 
     /**
@@ -65,6 +68,13 @@ class LiteCache implements CacheInterface
      * @var int
      */
     private $defaultTimeToLive;
+
+    /**
+     * User defined PSR-3 compliant logger.
+     *
+     * @var LoggerInterface
+     */
+    private $logger;
 
     /**
      * Escapes the given text so that it can be placed inside a PHP multi-line comment.
@@ -126,6 +136,24 @@ class LiteCache implements CacheInterface
     {
         if (empty($pool)) {
             throw new CacheArgumentException('Pool name must not be null or empty');
+        }
+    }
+
+    /**
+     * Ensures that the specified logger is valid, i.e. an instance of a class
+     * implementing Psr\Log\LoggerInterface, or null.
+     *
+     * @param LoggerInterface|null $logger Logger to be checked.
+     *
+     * @throws CacheArgumentException
+     *     If the specified logger is neither null nor an instance of a class
+     *     implementing LoggerInterface.
+     */
+    private static function ensureLoggerValidity($logger)
+    {
+        if ($logger !== null && !($logger instanceof LoggerInterface)) {
+            throw new CacheArgumentException('The specified logger must be an instance'
+                                             . ' of Psr\Log\LoggerInterface or null.');
         }
     }
 
@@ -192,10 +220,12 @@ class LiteCache implements CacheInterface
                                           $config !== null ? $config : []);
 
         self::ensurePoolNameValidity($config['pool']);
+        self::ensureLoggerValidity($config['logger']);
 
         $this->cacheDirectory = PathHelper::directory($config['directory']);
         $this->pool = $config['pool'];
         $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
+        $this->logger = $config['logger'] ?: new NullLogger();
 
         PathHelper::makePath($this->cacheDirectory, 0766);
     }
