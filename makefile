@@ -16,5 +16,7 @@ docs:
 	phpdoc
 
 check:
-	@echo '---- (Checking unit tests) --------------------'
+	@echo '---- (Running Psalm) --------------------------'
+	psalm
+	@echo '---- (Running Unit Tests) .--------------------'
 	phpunit

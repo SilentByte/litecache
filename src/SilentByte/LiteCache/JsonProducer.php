@@ -20,6 +20,9 @@ use RuntimeException;
  */
 class JsonProducer
 {
+    /**
+     * @var string
+     */
     private $filename;
 
     /**
