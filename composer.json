@@ -18,8 +18,7 @@
         }
     ],
     "suggest": {
-        "monolog/monolog": "Allows more advanced logging of the application flow",
-        "ext-xml": "Needed to support XML format in class Foo"
+        "monolog/monolog": "Allows more advanced logging of the application flow"
     },
     "autoload": {
         "psr-4": {
