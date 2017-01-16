@@ -1,6 +1,7 @@
 vendor/
 docs/
 .litecache/
+.sami/
 
 composer.lock
 *.test.php

@@ -13,7 +13,7 @@ clean:
 
 .PHONY: docs
 docs:
-	phpdoc
+	./vendor/sami/sami/sami.php update sami.php
 
 check:
 	@echo '---- (Running Psalm) --------------------------'
