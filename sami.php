@@ -8,17 +8,25 @@
 
 declare(strict_types = 1);
 
-$options = [
-    'theme'     => 'default',
-    'title'     => 'SilentByte LiteCache 2.0 Documentation',
-    'build_dir' => __DIR__ . '/docs',
-    'cache_dir' => __DIR__ . '/.sami/.twig',
-];
+use Sami\Version\GitVersionCollection;
+
+$dir = __DIR__ . '/src';
 
 $iterator = Symfony\Component\Finder\Finder::create()
     ->files()
     ->name('*.php')
-    ->in(__DIR__ . '/src');
+    ->in($dir);
+
+$versions = GitVersionCollection::create($dir)
+    ->add('master', 'master');
+
+$options = [
+    'title'     => 'SilentByte LiteCache 2.0 Documentation',
+    'theme'     => 'sami-silentbyte',
+    'versions'  => $versions,
+    'build_dir' => __DIR__ . '/docs/%version%',
+    'cache_dir' => __DIR__ . '/.sami/.twig/%version%',
+];
 
 $sami = new Sami\Sami($iterator, $options);
 
