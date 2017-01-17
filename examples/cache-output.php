@@ -10,8 +10,8 @@ $cache = new LiteCache([
     // Specify the caching directory.
     'directory' => '.litecache',
 
-    // Cache objects permanently.
-    'ttl'       => '10 seconds'
+    // Cache objects for 30 seconds.
+    'ttl'       => '30 seconds'
 ]);
 
 // Load the specified file and cache it.

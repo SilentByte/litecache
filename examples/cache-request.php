@@ -8,11 +8,11 @@ $cache = new \SilentByte\LiteCache\LiteCache([
     'directory' => '.litecache',
 
     // Make cached objects expire after 10 minutes.
-    'ttl' => 60 * 10
+    'ttl' => '10 minutes'
 ]);
 
 // Issue a Github API request and cache it under the specified name ('git-request').
-// Subsequent calls to $cache->get() will be fetched from cache;
+// Subsequent calls to $cache->cache() will be fetched from cache;
 // after expiration, a new request will be issued.
 $response = $cache->cache('git-request', function () {
     $ch = curl_init('https://api.github.com/users/SilentByte');
