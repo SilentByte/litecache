@@ -1,0 +1,6 @@
+Hello World!
+
+The purpose of this file is to demonstrate
+file cache functionality.
+
+Cheers!

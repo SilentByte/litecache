@@ -1,4 +1,14 @@
 vendor/
+docs/
 .litecache/
+.sami/
+
+composer.lock
 *.test.php
 *.sublime-workspace
+
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/markdown*
+

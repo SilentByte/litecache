@@ -1,32 +1,37 @@
-<?php declare(strict_types=1);
+<?php
 /**
  * SilentByte LiteCache Library
+ *
  * @copyright 2017 SilentByte <https://silentbyte.com/>
- * @license https://opensource.org/licenses/MIT MIT
+ * @license   https://opensource.org/licenses/MIT MIT
  */
+
+declare(strict_types = 1);
 
 namespace SilentByte\LiteCache;
 
 use Exception;
+use Psr\SimpleCache\CacheException as PsrCacheException;
+use Throwable;
 
+/**
+ * Base class for all cache related exceptions.
+ *
+ * @package SilentByte\LiteCache
+ */
 class CacheException extends Exception
+    implements PsrCacheException
 {
-    private $name;
-    private $cache;
-
-    public function __construct(string $name, string $cache, string $message) {
-        $this->name = $name;
-        $this->cache = $cache;
-
-        parent::__construct($message, 0, null);
-    }
-
-    public function getName() : string {
-        return $this->name;
-    }
-
-    public function getCache() : string {
-        return $this->cache;
+    /**
+     * Creates the exception object.
+     *
+     * @param string         $message  Message indicating what caused the exception.
+     * @param Throwable|null $previous The exception that was the cause of this cache exception.
+     */
+    public function __construct(string $message,
+                                Throwable $previous = null)
+    {
+        parent::__construct($message, 0, $previous);
     }
 }
 

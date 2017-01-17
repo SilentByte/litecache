@@ -1,0 +1,7 @@
+{
+    "server": {
+        "host": "myhost.test.com",
+        "user": "root",
+        "password": "root"
+    }
+}
