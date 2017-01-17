@@ -30,7 +30,6 @@ LiteCache implements [PSR-16](http://www.php-fig.org/psr/psr-16/) and thus provi
 Let's get started with the following basic example that demonstrates how to load and cache an application's configuration from a JSON file.
 
 ```php
-<?php
 $cache = new \SilentByte\LiteCache\LiteCache();
 
 $config = $cache->get('config');
@@ -55,7 +54,6 @@ The main function for storing and retrieving objects to and from the cache is th
 The following example issues a Github API request using cURL and caches the result for 10 minutes. When the code is run for the first time, it will fetch the data from the Github server. Subsequent calls to the script will access the cached value without issuing a time-expensive request.
 
 ```php
-<?php
 // Create the cache object with a customized configuration.
 $cache = new \SilentByte\LiteCache\LiteCache([
     // Specify the caching directory.
@@ -98,7 +96,6 @@ password = root
 ...and this code...
 
 ```php
-<?php
 use SilentByte\LiteCache\IniProducer;
 use SilentByte\LiteCache\LiteCache;
 
@@ -121,7 +118,6 @@ echo "Host: ", $config['server']['host'], "\n",
 The same concept can be applied to cache PHP's output, e.g. caching a web page in order to avoid having to re-render it upon every request. The easiest way to achieve this is by using the integrated `OutputProducer`:
 
 ```php
-<?php
 use SilentByte\LiteCache\LiteCache;
 use SilentByte\LiteCache\OutputProducer;
 
