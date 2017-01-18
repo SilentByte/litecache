@@ -45,7 +45,13 @@ class LiteCache implements CacheInterface
         'directory' => '.litecache',
         'pool'      => 'default',
         'ttl'       => LiteCache::EXPIRE_NEVER,
-        'logger'    => null
+        'logger'    => null,
+        'strategy'  => [
+            'code' => [
+                'entries' => 1000,
+                'depth'   => 16
+            ]
+        ]
     ];
 
     /**
@@ -77,6 +83,13 @@ class LiteCache implements CacheInterface
     private $logger;
 
     /**
+     * Used to determine whether an object is 'simple' or 'complex'.
+     *
+     * @var ObjectComplexityAnalyzer
+     */
+    private $oca;
+
+    /**
      * Escapes the given text so that it can be placed inside a PHP multi-line comment.
      *
      * @param string $text Text to be escaped.
@@ -93,15 +106,22 @@ class LiteCache implements CacheInterface
     /**
      * Generates the header comment for cache file, which includes key, timestamp and TTL.
      *
+     * @param string $type      Type of the export.
      * @param string $key       Unique name of the object.
      * @param int    $ttl       The object's time to live.
      * @param int    $timestamp Indicates at what point in time the object has been stored.
      *
      * @return string Header comment.
      */
-    private static function generateCacheFileComment(string $key, int $ttl, int $timestamp) : string
+    private static function generateCacheFileComment(string $type, string $key, int $ttl, int $timestamp) : string
     {
-        return self::escapeComment($key . ' ' . date('c', $timestamp) . ' ' . $ttl);
+        $time = date('c', $timestamp);
+        $duration = sprintf('%02d:%02d:%02d',
+                            floor($ttl / 3600),
+                            ($ttl / 60) % 60,
+                            $ttl % 60);
+
+        return self::escapeComment("{$type} '{$key}' {$time} {$duration}");
     }
 
     /**
@@ -145,25 +165,28 @@ class LiteCache implements CacheInterface
      * Creates the object based on the specified configuration.
      *
      * @param array $config Passes in the user's cache configuration.
-     *                      * directory: Defines the location where cache files are to be stored.
-     *                      * ttl: Default time to live for cache files in seconds or a DateInterval object.
+     *                      - directory: Defines the location where cache files are to be stored.
+     *                      - ttl: Default time to live for cache files in seconds or a DateInterval object.
      */
     public function __construct(array $config = null)
     {
         $config = array_replace_recursive(self::DEFAULT_CONFIG,
                                           $config !== null ? $config : []);
 
-        self::ensureLoggerValidity($config['logger']);
-        $this->logger = $config['logger'] ?: new NullLogger();
+        $this->ensureLoggerValidity($config['logger']);
+        $this->logger = $config['logger'] ?? new NullLogger();
 
-        self::ensurePoolNameValidity($config['pool']);
+        $this->ensurePoolNameValidity($config['pool']);
         $this->pool = $config['pool'];
 
-        self::ensureTimeToLiveValidity($config['ttl']);
+        $this->ensureTimeToLiveValidity($config['ttl']);
         $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
-        self::ensureCacheDirectoryValidity($config['directory']);
+        $this->ensureCacheDirectoryValidity($config['directory']);
         $this->cacheDirectory = PathHelper::directory($config['directory']);
+
+        $this->oca = new ObjectComplexityAnalyzer($config['strategy']['code']['entries'],
+                                                  $config['strategy']['code']['depth']);
 
         PathHelper::makePath($this->cacheDirectory, 0766);
     }
@@ -310,6 +333,21 @@ class LiteCache implements CacheInterface
     }
 
     /**
+     * Checks whether the specified object is 'simple' or 'complex'.
+     *
+     * - Simple: null, integer, float, string, boolean, and array (only containing 'simple' objects).
+     * - Complex: object, resource, and array (containing 'complex' objects).
+     *
+     * @param mixed $object Object to be analyzed.
+     *
+     * @return bool True if the specified object is considered 'simple', false otherwise.
+     */
+    private function isSimpleObject($object) : bool
+    {
+        return $this->oca->analyze($object) === ObjectComplexityAnalyzer::SIMPLE;
+    }
+
+    /**
      * Computes and returns the hash for the specified key.
      * The hash is used to to name the cache file.
      *
@@ -389,7 +427,7 @@ class LiteCache implements CacheInterface
      */
     private function writeCodeCache(string $key, $object, int $ttl, int $timestamp) : bool
     {
-        $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
+        $comment = self::generateCacheFileComment('code', $key, $ttl, $timestamp);
         $condition = self::generateCacheFileExpirationCondition($ttl, $timestamp);
 
         $export = var_export($object, true);
@@ -411,7 +449,7 @@ class LiteCache implements CacheInterface
      */
     private function writeSerializedCache(string $key, $object, int $ttl, int $timestamp) : bool
     {
-        $comment = self::generateCacheFileComment($key, $ttl, $timestamp);
+        $comment = self::generateCacheFileComment('serialized', $key, $ttl, $timestamp);
         $condition = self::generateCacheFileExpirationCondition($ttl, $timestamp);
 
         $code = "<?php /* {$comment} */" . PHP_EOL
@@ -444,14 +482,11 @@ class LiteCache implements CacheInterface
      */
     private function storeObject(string $key, $object, int $ttl) : bool
     {
-        // TODO: Distinguish between complex and simple objects.
-        if (is_bool($object)
-            || is_int($object)
-            || is_float($object)
-            || is_string($object)
-        ) {
+        if ($this->isSimpleObject($object)) {
+            $this->logger->info('Object {key} is \'simple\'.', ['key' => $key]);
             $result = $this->writeCodeCache($key, $object, $ttl, time());
         } else {
+            $this->logger->info('Object {key} is \'complex\'.', ['key' => $key]);
             $result = $this->writeSerializedCache($key, $object, $ttl, time());
         }
 
@@ -520,7 +555,7 @@ class LiteCache implements CacheInterface
      */
     public function get($key, $default = null)
     {
-        self::ensureKeyValidity($key);
+        $this->ensureKeyValidity($key);
         $object = $this->loadObject($key);
 
         if ($object === null) {
@@ -547,7 +582,7 @@ class LiteCache implements CacheInterface
      */
     public function set($key, $value, $ttl = null)
     {
-        self::ensureKeyValidity($key);
+        $this->ensureKeyValidity($key);
 
         // According to PSR-16, it is not possible to distinguish between
         // null and a cache miss; there is no need to store null.
@@ -587,7 +622,7 @@ class LiteCache implements CacheInterface
      */
     public function cache(string $key, callable $producer, $ttl = null)
     {
-        self::ensureKeyValidity($key);
+        $this->ensureKeyValidity($key);
 
         $object = $this->get($key);
         if ($object !== null) {
@@ -622,7 +657,7 @@ class LiteCache implements CacheInterface
      */
     public function delete($key)
     {
-        self::ensureKeyValidity($key);
+        $this->ensureKeyValidity($key);
 
         $cacheFileName = $this->getCacheFileName($key);
         if (!@unlink($cacheFileName)) {
@@ -672,7 +707,7 @@ class LiteCache implements CacheInterface
      */
     public function getMultiple($keys, $default = null)
     {
-        self::ensureArrayOrTraversable($keys);
+        $this->ensureArrayOrTraversable($keys);
 
         $objects = [];
         foreach ($keys as $key) {
@@ -699,7 +734,7 @@ class LiteCache implements CacheInterface
      */
     public function setMultiple($values, $ttl = null)
     {
-        self::ensureArrayOrTraversable($values);
+        $this->ensureArrayOrTraversable($values);
 
         foreach ($values as $key => $value) {
             if (!$this->set($key, $value, $ttl)) {
@@ -724,7 +759,7 @@ class LiteCache implements CacheInterface
      */
     public function deleteMultiple($keys)
     {
-        self::ensureArrayOrTraversable($keys);
+        $this->ensureArrayOrTraversable($keys);
 
         foreach ($keys as $key) {
             if (!$this->delete($key)) {
@@ -752,7 +787,7 @@ class LiteCache implements CacheInterface
      */
     public function has($key)
     {
-        self::ensureKeyValidity($key);
+        $this->ensureKeyValidity($key);
 
         $cacheFileName = $this->getCacheFileName($key);
         return file_exists($cacheFileName);
