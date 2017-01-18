@@ -18,7 +18,8 @@ $iterator = Symfony\Component\Finder\Finder::create()
     ->in($dir);
 
 $versions = GitVersionCollection::create($dir)
-    ->add('master', 'master');
+    ->add('master')
+    ->addFromTags('2.0');
 
 $options = [
     'title'     => 'SilentByte LiteCache 2.0 Documentation',
