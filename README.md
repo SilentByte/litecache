@@ -168,14 +168,18 @@ ttl          | Time-To-Live. Defines a time interval that signaling when cache o
 logger       | An instance of a [PSR-3](http://www.php-fig.org/psr/psr-3/) compliant logger class (implementing `\Psr\Log\LoggerInterface`) that is used to receive logging information. May be `null` if not required.
 
 
-## Contribution
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this work by you shall be licensed under the [MIT License](https://opensource.org/licenses/MIT), without any additional terms or conditions.
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+
+## Change Log
+See [CHANGELOG.md](CHANGELOG.md).
 
 
 ## FAQ
 
 ### Under what license is LiteCache released?
-MIT license. Check out `license.txt` for details. More information regarding the MIT license can be found here: <https://opensource.org/licenses/MIT>
+MIT license. Check out [LICENSE.txt](LICENSE.txt) for details. More information regarding the MIT license can be found here: <https://opensource.org/licenses/MIT>
 
 ### How do I permanently cache static files, i.e. configuration files?
 Setting the `$ttl` value to `LiteCache::EXPIRE_NEVER` will cause objects to remain in the cache until the cache file is deleted manually, either by physically deleting the file or by calling `$cache->delete($key)` or `$cache->clean()`.
