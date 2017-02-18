@@ -23,6 +23,24 @@ class LiteCacheTest extends TestCase
         $this->vfs();
     }
 
+    public function configProvider()
+    {
+        return [
+            [
+                ['subdivision' => false],
+                ['subdivision' => true],
+                [
+                    'subdivision' => false,
+                    'pool'        => 'test-pool'
+                ],
+                [
+                    'subdivision' => true,
+                    'pool'        => 'test-pool'
+                ]
+            ]
+        ];
+    }
+
     public function invalidKeyProvider()
     {
         return [[null], ['']];
@@ -35,7 +53,7 @@ class LiteCacheTest extends TestCase
         $object->xyz = 1234;
         $object->array = [10, 20, 30, 40, 50];
 
-        return [
+        $data = [
             ['key-string', 'test'],
             ['key-integer', 1234],
             ['key-float', 3.1415],
@@ -49,6 +67,15 @@ class LiteCacheTest extends TestCase
             ['key-object', $object],
             ['key-array-object', [$object, $object, $object]]
         ];
+
+        $permutations = [];
+        foreach ($this->configProvider()[0] as $config) {
+            foreach ($data as $entry) {
+                $permutations[] = array_merge([$config], $entry);
+            }
+        }
+
+        return $permutations;
     }
 
     public function multipleKeyObjectProvider()
@@ -58,27 +85,30 @@ class LiteCacheTest extends TestCase
         $object->xyz = 1234;
         $object->array = [10, 20, 30, 40, 50];
 
-        return [
-            [
-                [
-                    'key-string'        => 'test',
-                    'key-integer'       => 1234,
-                    'key-float'         => 3.1415,
-                    'key-boolean-true'  => true,
-                    'key-boolean-false' => false,
-                    'key-array'         => [
-                        'foo'   => 'bar',
-                        'xyz'   => 1234,
-                        'array' => [10, 20, 30, 40, 50]
-                    ],
-                    'key-object'        => $object,
-                    'key-array-object'  => [$object, $object, $object]
-                ]
-            ]
+        $data = [
+            'key-string'        => 'test',
+            'key-integer'       => 1234,
+            'key-float'         => 3.1415,
+            'key-boolean-true'  => true,
+            'key-boolean-false' => false,
+            'key-array'         => [
+                'foo'   => 'bar',
+                'xyz'   => 1234,
+                'array' => [10, 20, 30, 40, 50]
+            ],
+            'key-object'        => $object,
+            'key-array-object'  => [$object, $object, $object]
         ];
+
+        $permutations = [];
+        foreach ($this->configProvider()[0] as $config) {
+            $permutations[] = [$config, $data];
+        }
+
+        return $permutations;
     }
 
-    public function create($config = null)
+    public function create(array $config = null)
     {
         $defaultConfig = [
             'directory' => $this->url('root/.litecache'),
@@ -149,15 +179,21 @@ class LiteCacheTest extends TestCase
                       ]);
     }
 
-    public function testGetReturnsNullForUncachedObjects()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testGetReturnsNullForUncachedObjects(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $this->assertNull($cache->get('uncached-object'));
     }
 
-    public function testGetReturnsDefaultForUncachedObjects()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testGetReturnsDefaultForUncachedObjects(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $this->assertEquals(10, $cache->get('uncached-object', 10));
         $this->assertEquals('string', $cache->get('uncached-object', 'string'));
@@ -174,9 +210,9 @@ class LiteCacheTest extends TestCase
     /**
      * @dataProvider keyObjectProvider
      */
-    public function testGetReturnsCachedObject($key, $object)
+    public function testGetReturnsCachedObject(array $config, $key, $object)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $cache->set($key, $object);
 
         $this->assertEquals($object, $cache->get($key));
@@ -212,6 +248,18 @@ class LiteCacheTest extends TestCase
                                 . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
+    public function testSetCreatesSubdivisionCacheFile()
+    {
+        $cache = $this->create(['subdivision' => true]);
+        $cache->set('test', 1234);
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '95'
+                                . DIRECTORY_SEPARATOR
+                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+    }
+
     /**
      * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */
@@ -223,9 +271,12 @@ class LiteCacheTest extends TestCase
         });
     }
 
-    public function testCacheExecutesProducerOnUncachedObject()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testCacheExecutesProducerOnUncachedObject(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $executed = false;
         $cache->cache('test', function () use (&$executed) {
@@ -236,9 +287,12 @@ class LiteCacheTest extends TestCase
         $this->assertTrue($executed);
     }
 
-    public function testCacheIgnoresProducerOnUncachedObject()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testCacheIgnoresProducerOnUncachedObject(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $executed = false;
 
         $cache->cache('test', function () {
@@ -256,9 +310,9 @@ class LiteCacheTest extends TestCase
     /**
      * @dataProvider keyObjectProvider
      */
-    public function testCacheReturnsCachedObject($key, $object)
+    public function testCacheReturnsCachedObject(array $config, $key, $object)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $cached = $cache->cache($key, function () use ($object) {
             return $object;
         });
@@ -278,15 +332,32 @@ class LiteCacheTest extends TestCase
                                 . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
-    public function testDeleteReturnsFalseOnUncachedObject()
+    public function testCacheCreatesSubdivisionCacheFile()
     {
-        $cache = $this->create();
+        $cache = $this->create(['subdivision' => true]);
+        $cache->cache('test', function () {
+            return 1234;
+        });
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . '95'
+                                . DIRECTORY_SEPARATOR
+                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+    }
+
+    /**
+     * @dataProvider configProvider
+     */
+    public function testDeleteReturnsFalseOnUncachedObject(array $config)
+    {
+        $cache = $this->create($config);
         $this->assertFalse($cache->delete('uncached'));
     }
 
     public function testDeleteActuallyDeletesCacheFile()
     {
-        $cache = $this->create();
+        $cache = $this->create(['subdivision' => true]);
 
         $cache->set('test', 1234);
         $cache->delete('test');
@@ -296,9 +367,26 @@ class LiteCacheTest extends TestCase
                                    . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
     }
 
-    public function testDeleteReturnsTrueOnSuccess()
+    public function testDeleteActuallyDeletesSubdivisionCacheFile()
     {
-        $cache = $this->create();
+        $cache = $this->create(['subdivision' => true]);
+
+        $cache->set('test', 1234);
+        $cache->delete('test');
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . '95'
+                                   . DIRECTORY_SEPARATOR
+                                   . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+    }
+
+    /**
+     * @dataProvider configProvider
+     */
+    public function testDeleteReturnsTrueOnSuccess(array $config)
+    {
+        $cache = $this->create($config);
 
         $cache->set('test', 1234);
         $this->assertTrue($cache->delete('test'));
@@ -314,15 +402,21 @@ class LiteCacheTest extends TestCase
         $cache->delete($key);
     }
 
-    public function testClearReturnsTrueOnEmptyCache()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testClearReturnsTrueOnEmptyCache(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $this->assertTrue($cache->clear());
     }
 
-    public function testClearClearsAllCacheFiles()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testClearClearsAllCacheFiles(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $cache->set('aaa', 1234);
         $cache->set('bbb', 'test');
@@ -336,9 +430,12 @@ class LiteCacheTest extends TestCase
                            ['root']['.litecache']);
     }
 
-    public function testGetMultipleReturnsNullForUncachedObjects()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testGetMultipleReturnsNullForUncachedObjects(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $objects = $cache->getMultiple([
                                            'uncached-object-1',
                                            'uncached-object-2',
@@ -355,9 +452,12 @@ class LiteCacheTest extends TestCase
                             $objects);
     }
 
-    public function testGetMultipleReturnsDefaultForUncachedObjects()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testGetMultipleReturnsDefaultForUncachedObjects(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $objects = $cache->getMultiple([
                                            'uncached-object-1',
                                            'uncached-object-2',
@@ -377,13 +477,13 @@ class LiteCacheTest extends TestCase
     /**
      * @dataProvider multipleKeyObjectProvider
      */
-    public function testGetMultipleReturnsCachedObjects($keys)
+    public function testGetMultipleReturnsCachedObjects(array $config, array $data)
     {
-        $cache = $this->create();
-        $cache->setMultiple($keys);
+        $cache = $this->create($config);
+        $cache->setMultiple($data);
 
-        $objects = $cache->getMultiple(array_keys($keys));
-        $this->assertEquals($keys, $objects);
+        $objects = $cache->getMultiple(array_keys($data));
+        $this->assertEquals($data, $objects);
     }
 
     /**
@@ -452,9 +552,12 @@ class LiteCacheTest extends TestCase
         $cache->setMultiple($invalidKeys);
     }
 
-    public function testSetMultipleCreatesCacheFiles()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testSetMultipleCreatesCacheFiles(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $cache->setMultiple([
                                 'test-1' => 1234,
@@ -475,9 +578,12 @@ class LiteCacheTest extends TestCase
                                 . 'b3854bb80182bcf8d75b7f5bb9010fab.litecache.php');
     }
 
-    public function testDeleteMultipleReturnsFalseOnUncachedObject()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testDeleteMultipleReturnsFalseOnUncachedObject(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $cache->set('cached-1', 1234);
         $this->assertFalse($cache->deleteMultiple(
@@ -489,9 +595,12 @@ class LiteCacheTest extends TestCase
             ]));
     }
 
-    public function testDeleteMultipleActuallyDeletesCacheFile()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testDeleteMultipleActuallyDeletesCacheFile(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $objects = [
             'test-1' => 1234,
@@ -515,9 +624,12 @@ class LiteCacheTest extends TestCase
                                    . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
     }
 
-    public function testDeleteMultipleReturnsTrueOnSuccess()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testDeleteMultipleReturnsTrueOnSuccess(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
 
         $objects = [
             'test-1' => 1234,
@@ -544,17 +656,23 @@ class LiteCacheTest extends TestCase
         $cache->deleteMultiple($invalidKeys);
     }
 
-    public function testHasReturnsTrueOnCachedObject()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testHasReturnsTrueOnCachedObject(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $cache->set('test', 1234);
 
         $this->assertTrue($cache->has('test'));
     }
 
-    public function testHasReturnsFalseOnUncachedObject()
+    /**
+     * @dataProvider configProvider
+     */
+    public function testHasReturnsFalseOnUncachedObject(array $config)
     {
-        $cache = $this->create();
+        $cache = $this->create($config);
         $this->assertFalse($cache->has('uncached'));
     }
 
