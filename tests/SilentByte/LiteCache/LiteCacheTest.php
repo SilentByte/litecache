@@ -75,6 +75,7 @@ class LiteCacheTest extends TestCase
         $object->array = [10, 20, 30, 40, 50];
 
         $data = [
+            ['ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.', 'psr16-minimum-requirement'],
             ['key-string', 'test'],
             ['key-integer', 1234],
             ['key-float', 3.1415],
@@ -107,6 +108,8 @@ class LiteCacheTest extends TestCase
         $object->array = [10, 20, 30, 40, 50];
 
         $data = [
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.'
+                                => 'psr16-minimum-requirement',
             'key-string'        => 'test',
             'key-integer'       => 1234,
             'key-float'         => 3.1415,
