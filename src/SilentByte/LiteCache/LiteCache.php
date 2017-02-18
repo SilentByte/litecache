@@ -392,7 +392,7 @@ class LiteCache implements CacheInterface
     private function writeDataToFile(string $filename, array $parts) : bool
     {
         if (!$fp = @fopen($filename, 'c')) {
-            $this->logger->error('File {filename} could not be opened.', ['filename' => $filename]);
+            $this->logger->error('File {filename} could not be created.', ['filename' => $filename]);
             return false;
         }
 
