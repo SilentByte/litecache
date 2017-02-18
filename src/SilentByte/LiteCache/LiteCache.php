@@ -295,9 +295,12 @@ class LiteCache implements CacheInterface
      */
     private function ensureKeyValidity($key)
     {
-        if (empty($key)) {
+        if (!is_string($key)
+            || empty($key)
+            || preg_match('~[{}()/\\\\@:]~', $key) === 1
+        ) {
             $this->logger->error('Key {key} is invalid.', ['key' => $key]);
-            throw new CacheArgumentException('Key must not be null or empty.');
+            throw new CacheArgumentException('Key must be a non-empty string and must not contain \'{}()/\\@:\'.');
         }
     }
 

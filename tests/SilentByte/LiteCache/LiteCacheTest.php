@@ -43,7 +43,28 @@ class LiteCacheTest extends TestCase
 
     public function invalidKeyProvider()
     {
-        return [[null], ['']];
+        $invalidKeys = [
+            null,
+            '',
+            1234,
+            3.14,
+            'foo{bar',
+            'foo}bar',
+            'foo(bar',
+            'foo)bar',
+            'foo/bar',
+            'foo\\bar',
+            'foo@bar',
+            'foo:bar',
+            '{}()/\@:'
+        ];
+
+        $nested = [];
+        foreach ($invalidKeys as $key) {
+            $nested[] = [$key];
+        }
+
+        return $nested;
     }
 
     public function keyObjectProvider()
