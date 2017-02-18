@@ -223,17 +223,6 @@ class LiteCacheTest extends TestCase
         });
     }
 
-    /**
-     * @expectedException \TypeError
-     */
-    public function testCacheThrowsOnNullKey()
-    {
-        $cache = $this->create();
-        $cache->cache(null, function () {
-            return 1234;
-        });
-    }
-
     public function testCacheExecutesProducerOnUncachedObject()
     {
         $cache = $this->create();
