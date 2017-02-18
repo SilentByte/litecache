@@ -1,5 +1,5 @@
 
-LiteCache 2.0
+LiteCache 2.1
 =============
 [![Build Status](https://travis-ci.org/SilentByte/litecache.svg?branch=master)](https://travis-ci.org/SilentByte/litecache)
 [![Latest Stable Version](http://img.shields.io/packagist/v/silentbyte/litecache.svg)](https://packagist.org/packages/silentbyte/litecache)
