@@ -1,5 +1,5 @@
 
-LiteCache 2.0
+LiteCache 2.1
 =============
 [![Build Status](https://travis-ci.org/SilentByte/litecache.svg?branch=master)](https://travis-ci.org/SilentByte/litecache)
 [![Latest Stable Version](http://img.shields.io/packagist/v/silentbyte/litecache.svg)](https://packagist.org/packages/silentbyte/litecache)
@@ -154,10 +154,11 @@ LiteCache's constructor accepts an array that specifies user-defined options.
 ```php
 // LiteCache 2.0 Default Options.
 $options = [
-    'directory' => '.litecache',
-    'pool'      => 'default',
-    'ttl'       => LiteCache::EXPIRE_NEVER,
-    'logger'    => null
+    'directory'   => '.litecache',
+    'subdivision' => false,
+    'pool'        => 'default',
+    'ttl'         => LiteCache::EXPIRE_NEVER,
+    'logger'      => null
 ];
 
 $cache = new LiteCache($options);
@@ -166,6 +167,7 @@ $cache = new LiteCache($options);
 Option       | Description
 -------------|-------------
 directory    | Location (path) indicating where the cache files are to be stored.
+subdivision  | Places cache files into different sub-directories to avoid having many files in the same directory.
 pool         | Defines the name of the cache pool. A pool is a logical separation of cache objects. Cache objects in different pools are independent of each other and may thus share the same unique name. See [PSR-6 #pool](http://www.php-fig.org/psr/psr-6/#pool).
 ttl          | Time-To-Live. Defines a time interval that signaling when cache objects expire by default. This value may be specified as an integer indicating seconds (e.g. 10), a time interval string (e.g '10 seconds'), an instance of DateInterval, or `LiteCache::EXPIRE_NEVER` / `LiteCache::EXPIRE_IMMEDIATELY`.
 logger       | An instance of a [PSR-3](http://www.php-fig.org/psr/psr-3/) compliant logger class (implementing `\Psr\Log\LoggerInterface`) that is used to receive logging information. May be `null` if not required.

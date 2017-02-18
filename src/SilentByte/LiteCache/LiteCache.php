@@ -42,11 +42,12 @@ class LiteCache implements CacheInterface
      * Specifies the default configuration.
      */
     const DEFAULT_CONFIG = [
-        'directory' => '.litecache',
-        'pool'      => 'default',
-        'ttl'       => LiteCache::EXPIRE_NEVER,
-        'logger'    => null,
-        'strategy'  => [
+        'directory'   => '.litecache',
+        'subdivision' => false,
+        'pool'        => 'default',
+        'ttl'         => LiteCache::EXPIRE_NEVER,
+        'logger'      => null,
+        'strategy'    => [
             'code' => [
                 'entries' => 1000,
                 'depth'   => 16
@@ -60,6 +61,13 @@ class LiteCache implements CacheInterface
      * @var string
      */
     private $cacheDirectory;
+
+    /**
+     * Indicates whether or not cache files should be placed in sub-directories.
+     *
+     * @var bool
+     */
+    private $subdivision;
 
     /**
      * User defined pool for this instance.
@@ -184,6 +192,7 @@ class LiteCache implements CacheInterface
 
         $this->ensureCacheDirectoryValidity($config['directory']);
         $this->cacheDirectory = PathHelper::directory($config['directory']);
+        $this->subdivision = (bool)$config['subdivision'];
 
         $this->oca = new ObjectComplexityAnalyzer($config['strategy']['code']['entries'],
                                                   $config['strategy']['code']['depth']);
@@ -286,9 +295,12 @@ class LiteCache implements CacheInterface
      */
     private function ensureKeyValidity($key)
     {
-        if (empty($key)) {
+        if (!is_string($key)
+            || empty($key)
+            || preg_match('~[{}()/\\\\@:]~', $key) === 1
+        ) {
             $this->logger->error('Key {key} is invalid.', ['key' => $key]);
-            throw new CacheArgumentException('Key must not be null or empty.');
+            throw new CacheArgumentException('Key must be a non-empty string and must not contain \'{}()/\\@:\'.');
         }
     }
 
@@ -373,26 +385,48 @@ class LiteCache implements CacheInterface
     private function getCacheFileName(string $key) : string
     {
         $hash = $this->getKeyHash($key);
-        $cacheFileName = PathHelper::combine($this->cacheDirectory,
-                                             $hash . '.litecache.php');
+        if ($this->subdivision) {
+            // Take the first two characters of the hashed key as the name of the sub-directory.
+            $cacheFileName = PathHelper::combine($this->cacheDirectory,
+                                                 substr($hash, 0, 2),
+                                                 $hash . '.litecache.php');
+        } else {
+            $cacheFileName = PathHelper::combine($this->cacheDirectory,
+                                                 $hash . '.litecache.php');
+        }
 
         return $cacheFileName;
     }
 
     /**
+     * Creates the sub-directory for the specified cache file.
+     *
+     * @param string $filename The filename of the cache file.
+     */
+    private function createCacheSubDirectory(string $filename)
+    {
+        if ($this->subdivision) {
+            PathHelper::makePath(dirname($filename), 0766);
+        }
+    }
+
+    /**
      * Writes data into the specified file using an exclusive lock.
      *
-     * @param string   $filename Target filename.
-     * @param string[] $parts    Array of strings, where each entry will be written
-     *                           into the file in consecutive order.
+     * @param string   $key   Unique name of the object.
+     * @param string[] $parts Array of strings, where each entry will be written
+     *                        into the file in consecutive order.
      *
      * @return bool True on success and false on failure.
      *
      */
-    private function writeDataToFile(string $filename, array $parts) : bool
+    private function writeDataToFile(string $key, array $parts) : bool
     {
+        $filename = $this->getCacheFileName($key);
+        $this->createCacheSubDirectory($filename);
+
         if (!$fp = @fopen($filename, 'c')) {
-            $this->logger->error('File {filename} could not be opened.', ['filename' => $filename]);
+            $this->logger->error('File {filename} could not be created.', ['filename' => $filename]);
             return false;
         }
 
@@ -434,7 +468,7 @@ class LiteCache implements CacheInterface
         $code = "<?php /* {$comment} */" . PHP_EOL
             . "return ({$condition}) ? null : [{$export}];";
 
-        return $this->writeDataToFile($this->getCacheFileName($key), [$code]);
+        return $this->writeDataToFile($key, [$code]);
     }
 
     /**
@@ -467,8 +501,7 @@ class LiteCache implements CacheInterface
             . "})();" . PHP_EOL
             . "__halt_compiler();";
 
-        return $this->writeDataToFile($this->getCacheFileName($key),
-                                      [$code, serialize($object)]);
+        return $this->writeDataToFile($key, [$code, serialize($object)]);
     }
 
     /**

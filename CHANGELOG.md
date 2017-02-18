@@ -2,6 +2,17 @@
 Change Log
 ==========
 
+## 2.1 (2017-02-19)
+Version 2.1 is a small update adding the 'subdivision' feature.
+
+### Added
+- Option `subdivision` to place cache files in sub-directories to avoid having a large number of files in the same directory.
+
+### Fixed
+- Keys are now properly validated according to PSR-16.
+- General improvements and fixes in code base and tests.
+
+
 ## 2.0 (2017-01-26)
 Version 2.0 implements major improvements in terms of the API, error handling, error reporting and logging, and general stability. Additionally, LiteCache is now [PSR-16](http://www.php-fig.org/psr/psr-16/) compliant.
 
