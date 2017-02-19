@@ -229,7 +229,7 @@ class LiteCache implements CacheInterface
      */
     private function ensurePoolNameValidity($pool)
     {
-        if (empty($pool)) {
+        if (!is_string($pool) || empty($pool)) {
             $this->logger->error('Pool name {pool} is invalid.', ['pool' => $pool]);
             throw new CacheArgumentException('Pool name must not be null or empty');
         }
