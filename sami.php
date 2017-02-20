@@ -8,8 +8,7 @@
 
 declare(strict_types = 1);
 
-use Sami\Version\GitVersionCollection;
-
+$version = exec('git symbolic-ref -q --short HEAD || git describe --tags --exact-match');
 $dir = __DIR__ . '/src';
 
 $iterator = Symfony\Component\Finder\Finder::create()
@@ -17,15 +16,11 @@ $iterator = Symfony\Component\Finder\Finder::create()
     ->name('*.php')
     ->in($dir);
 
-$versions = GitVersionCollection::create($dir)
-    ->add('master', 'master');
-
 $options = [
     'title'     => 'SilentByte LiteCache 2.0 Documentation',
     'theme'     => 'sami-silentbyte',
-    'versions'  => $versions,
-    'build_dir' => __DIR__ . '/docs/%version%',
-    'cache_dir' => __DIR__ . '/.sami/.twig/%version%',
+    'build_dir' => __DIR__ . "/docs/{$version}",
+    'cache_dir' => __DIR__ . "/.sami/.twig/{$version}",
 ];
 
 $sami = new Sami\Sami($iterator, $options);
