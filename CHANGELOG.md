@@ -2,6 +2,20 @@
 Change Log
 ==========
 
+## 2.1.1 (2017-02-20)
+Version 2.1.1 fixes several issues.
+
+### Changed
+- `setMultiple()` and `getMultiple()` now consider integers valid keys. PHP automatically coerces integral string keys to integers (see [PHP Manual](http://php.net/manual/en/language.types.array.php)), making it impossible to distinguish between the two types due to loss of type information.
+- More detailed exception messages.
+
+### Fixed
+- `delete()` and `clear()` now correctly respect the current pool.
+- `clear()` now works correctly with option `subdivision` enabled.
+- String `"0"` can now be used as the name for keys, pools, and cache directories.
+
+
+
 ## 2.1 (2017-02-19)
 Version 2.1 is a small update adding the 'subdivision' feature.
 
@@ -11,6 +25,7 @@ Version 2.1 is a small update adding the 'subdivision' feature.
 ### Fixed
 - Keys are now properly validated according to PSR-16.
 - General improvements and fixes in code base and tests.
+
 
 
 ## 2.0 (2017-01-26)
@@ -35,7 +50,6 @@ Version 2.0 implements major improvements in terms of the API, error handling, e
 - `JsonProducer` class for dealing with `*.json` files.
 - `CacheArgumentException` class for cache related issues with arguments.
 - `CacheProducerException` class for exceptions occurring in producers.
-
 
 ### Changed
 - Renamed option `expiration` to `ttl`.

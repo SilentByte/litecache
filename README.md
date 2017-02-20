@@ -152,7 +152,7 @@ See the `./examples/` folder for more details.
 LiteCache's constructor accepts an array that specifies user-defined options.
 
 ```php
-// LiteCache 2.0 Default Options.
+// LiteCache 2.1 Default Options.
 $options = [
     'directory'   => '.litecache',
     'subdivision' => false,
