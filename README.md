@@ -164,13 +164,13 @@ $options = [
 $cache = new LiteCache($options);
 ```
 
-Option       | Description
--------------|-------------
-directory    | Location (path) indicating where the cache files are to be stored.
-subdivision  | Places cache files into different sub-directories to avoid having many files in the same directory.
-pool         | Defines the name of the cache pool. A pool is a logical separation of cache objects. Cache objects in different pools are independent of each other and may thus share the same unique name. See [PSR-6 #pool](http://www.php-fig.org/psr/psr-6/#pool).
-ttl          | Time-To-Live. Defines a time interval that signaling when cache objects expire by default. This value may be specified as an integer indicating seconds (e.g. 10), a time interval string (e.g '10 seconds'), an instance of DateInterval, or `LiteCache::EXPIRE_NEVER` / `LiteCache::EXPIRE_IMMEDIATELY`.
-logger       | An instance of a [PSR-3](http://www.php-fig.org/psr/psr-3/) compliant logger class (implementing `\Psr\Log\LoggerInterface`) that is used to receive logging information. May be `null` if not required.
+Option         | Type                                  | Description
+---------------|---------------------------------------|------------
+directory      | string                                | Location (path) indicating where the cache files are to be stored.
+subdivision    | bool                                  | Places cache files into different sub-directories to avoid having many files in the same directory.
+pool           | string                                | Defines the name of the cache pool. A pool is a logical separation of cache objects. Cache objects in different pools are independent of each other and may thus share the same unique name. See [PSR-6 #pool](http://www.php-fig.org/psr/psr-6/#pool).
+ttl            | null<br>int<br>string<br>DateInterval | Time-To-Live. Defines a time interval that signaling when cache objects expire by default. This value may be specified as an integer indicating seconds (e.g. 10), a time interval string (e.g '10 seconds'), an instance of DateInterval, or `LiteCache::EXPIRE_NEVER` / `LiteCache::EXPIRE_IMMEDIATELY`.
+logger         | LoggerInterface<br>null               | An instance of a [PSR-3](http://www.php-fig.org/psr/psr-3/) compliant logger class (implementing `\Psr\Log\LoggerInterface`) that is used to receive logging information. May be `null` if not required.
 
 
 ## Contributing
