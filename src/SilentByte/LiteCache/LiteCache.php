@@ -42,11 +42,11 @@ class LiteCache implements CacheInterface
      * Specifies the default configuration.
      */
     const DEFAULT_CONFIG = [
+        'logger'      => null,
         'directory'   => '.litecache',
         'subdivision' => false,
         'pool'        => 'default',
         'ttl'         => LiteCache::EXPIRE_NEVER,
-        'logger'      => null,
         'strategy'    => [
             'code' => [
                 'entries' => 1000,
@@ -54,6 +54,13 @@ class LiteCache implements CacheInterface
             ]
         ]
     ];
+
+    /**
+     * User defined PSR-3 compliant logger.
+     *
+     * @var LoggerInterface
+     */
+    private $logger;
 
     /**
      * User defined path to the cache directory.
@@ -77,18 +84,25 @@ class LiteCache implements CacheInterface
     private $pool;
 
     /**
+     * Hash of the pool name used for the name of the pool's subdirectory.
+     *
+     * @var string
+     */
+    private $poolHash;
+
+    /**
+     * Path to the directory of the user defined pool.
+     *
+     * @var string
+     */
+    private $poolDirectory;
+
+    /**
      * User defined default time to live in seconds.
      *
      * @var int
      */
     private $defaultTimeToLive;
-
-    /**
-     * User defined PSR-3 compliant logger.
-     *
-     * @var LoggerInterface
-     */
-    private $logger;
 
     /**
      * Used to determine whether an object is 'simple' or 'complex'.
@@ -184,20 +198,23 @@ class LiteCache implements CacheInterface
         $this->ensureLoggerValidity($config['logger']);
         $this->logger = $config['logger'] ?? new NullLogger();
 
-        $this->ensurePoolNameValidity($config['pool']);
-        $this->pool = $config['pool'];
-
-        $this->ensureTimeToLiveValidity($config['ttl']);
-        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
-
         $this->ensureCacheDirectoryValidity($config['directory']);
         $this->cacheDirectory = PathHelper::directory($config['directory']);
         $this->subdivision = (bool)$config['subdivision'];
+
+        $this->ensurePoolNameValidity($config['pool']);
+        $this->pool = $config['pool'];
+        $this->poolHash = $this->getHash($this->pool);
+        $this->poolDirectory = PathHelper::combine($this->cacheDirectory, $this->poolHash);
+
+        $this->ensureTimeToLiveValidity($config['ttl']);
+        $this->defaultTimeToLive = $this->normalizeTimeToLive($config['ttl']);
 
         $this->oca = new ObjectComplexityAnalyzer($config['strategy']['code']['entries'],
                                                   $config['strategy']['code']['depth']);
 
         PathHelper::makePath($this->cacheDirectory, 0766);
+        PathHelper::makePath($this->poolDirectory, 0766);
     }
 
     /**
@@ -360,19 +377,16 @@ class LiteCache implements CacheInterface
     }
 
     /**
-     * Computes and returns the hash for the specified key.
-     * The hash is used to to name the cache file.
+     * Computes and returns the hash for the specified name, which is
+     * either the key of an object or the name of a pool.
      *
-     * @param string $key Unique name of the object.
+     * @param string $name Name to be hashed.
      *
      * @return string
      */
-    private function getKeyHash(string $key) : string
+    private function getHash(string $name) : string
     {
-        // Add extra character in order to avoid an overlap between pool
-        // and key. Pool 'ab' and key 'xy' would otherwise be indistinguishable
-        // from pool 'a' and key 'bxy'.
-        return md5($this->pool . '|' . $key);
+        return md5($name);
     }
 
     /**
@@ -384,14 +398,16 @@ class LiteCache implements CacheInterface
      */
     private function getCacheFileName(string $key) : string
     {
-        $hash = $this->getKeyHash($key);
+        $hash = $this->getHash($key);
         if ($this->subdivision) {
             // Take the first two characters of the hashed key as the name of the sub-directory.
             $cacheFileName = PathHelper::combine($this->cacheDirectory,
+                                                 $this->poolHash,
                                                  substr($hash, 0, 2),
                                                  $hash . '.litecache.php');
         } else {
             $cacheFileName = PathHelper::combine($this->cacheDirectory,
+                                                 $this->poolHash,
                                                  $hash . '.litecache.php');
         }
 
@@ -556,6 +572,62 @@ class LiteCache implements CacheInterface
     }
 
     /**
+     * Iterates through the specified directory and deletes all cache files.
+     *
+     * @param string $directory Directory to be iterated.
+     *
+     * @return bool True if all cache files were successfully deleted, false otherwise.
+     */
+    private function deleteAllCacheFilesInDirectory(string $directory)
+    {
+        $iterator = new DirectoryIterator($directory);
+        foreach ($iterator as $file) {
+            if (!$file->isDot()
+                && !$file->isDir()
+                && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
+            ) {
+                if (!@unlink($file->getPathname())) {
+                    $this->logger->error('Cache file {filename} could not be deleted.',
+                                         ['filename' => $file->getFilename()]);
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Iterates through the specified cache directory and recursively deletes
+     * all cache files from all subdirectories.
+     *
+     * @param string $directory Directory to be iterated.
+     *
+     * @return bool True if all cache files were successfully deleted, false otherwise.
+     */
+    private function deleteAllCacheFilesInAllSubDirectories(string $directory)
+    {
+        $iterator = new DirectoryIterator($directory);
+        foreach ($iterator as $file) {
+            if (!$file->isDot()
+                && $file->isDir()
+                && preg_match('/[0-9a-f]{2}/', $file->getFilename())
+            ) {
+                if (!$this->deleteAllCacheFilesInDirectory($file->getPathname())) {
+                    return false;
+                }
+
+                if (!@rmdir($file->getPathname())) {
+                    $this->logger->warning('Could not delete subdirectory {directory} (it may not be empty).',
+                                           ['directory' => $file->getPathname()]);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Gets the user defined cache directory.
      *
      * @return string
@@ -708,21 +780,8 @@ class LiteCache implements CacheInterface
      */
     public function clear()
     {
-        $iterator = new DirectoryIterator($this->cacheDirectory);
-
-        foreach ($iterator as $file) {
-            if (!$file->isDot()
-                && preg_match('/[0-9a-f]{32}\\.litecache.php/', $file->getFilename())
-            ) {
-                if (!unlink($file->getPathname())) {
-                    $this->logger->error('Cache file {filename} could not be deleted.',
-                                         ['filename' => $file->getFilename()]);
-                    return false;
-                }
-            }
-        }
-
-        return true;
+        return ($this->deleteAllCacheFilesInDirectory($this->poolDirectory)
+            && $this->deleteAllCacheFilesInAllSubDirectories($this->poolDirectory));
     }
 
     /** @noinspection PhpUndefinedClassInspection */

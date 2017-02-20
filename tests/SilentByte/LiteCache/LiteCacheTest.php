@@ -26,18 +26,16 @@ class LiteCacheTest extends TestCase
     public function configProvider()
     {
         return [
-            [
-                ['subdivision' => false],
-                ['subdivision' => true],
-                [
-                    'subdivision' => false,
-                    'pool'        => 'test-pool'
-                ],
-                [
-                    'subdivision' => true,
-                    'pool'        => 'test-pool'
-                ]
-            ]
+            [['subdivision' => false]],
+            [['subdivision' => true]],
+            [[
+                'subdivision' => false,
+                'pool'        => 'test-pool'
+            ]],
+            [[
+                'subdivision' => true,
+                'pool'        => 'test-pool'
+            ]]
         ];
     }
 
@@ -152,6 +150,18 @@ class LiteCacheTest extends TestCase
 
         $this->assertTrue(file_exists($cache->getCacheDirectory()));
         $this->assertEquals(0766, fileperms($cache->getCacheDirectory()) & 0777);
+    }
+
+    public function testConstructorCreatesCachePoolDirectoryWithPermissions()
+    {
+        $cache = $this->create();
+
+        $poolDirectory = $cache->getCacheDirectory()
+            . DIRECTORY_SEPARATOR
+            . 'af2bc12271d88af325dd44d9029b197d';
+
+        $this->assertTrue(file_exists($poolDirectory));
+        $this->assertEquals(0766, fileperms($poolDirectory) & 0777);
     }
 
     public function testConstructorAcceptsDateInterval()
@@ -269,7 +279,9 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     public function testSetCreatesSubdivisionCacheFile()
@@ -279,9 +291,11 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '95'
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
                                 . DIRECTORY_SEPARATOR
-                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                . '09'
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     /**
@@ -353,7 +367,9 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     public function testCacheCreatesSubdivisionCacheFile()
@@ -365,9 +381,11 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . '95'
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
                                 . DIRECTORY_SEPARATOR
-                                . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                . '09'
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     /**
@@ -381,14 +399,22 @@ class LiteCacheTest extends TestCase
 
     public function testDeleteActuallyDeletesCacheFile()
     {
-        $cache = $this->create(['subdivision' => true]);
+        $cache = $this->create();
 
         $cache->set('test', 1234);
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
+
         $cache->delete('test');
 
         $this->assertFileNotExists($cache->getCacheDirectory()
                                    . DIRECTORY_SEPARATOR
-                                   . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                   . DIRECTORY_SEPARATOR
+                                   . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     public function testDeleteActuallyDeletesSubdivisionCacheFile()
@@ -396,13 +422,23 @@ class LiteCacheTest extends TestCase
         $cache = $this->create(['subdivision' => true]);
 
         $cache->set('test', 1234);
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '09'
+                                . DIRECTORY_SEPARATOR
+                                . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
+
         $cache->delete('test');
 
         $this->assertFileNotExists($cache->getCacheDirectory()
                                    . DIRECTORY_SEPARATOR
-                                   . '95'
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
                                    . DIRECTORY_SEPARATOR
-                                   . '95859654c062f1a860f7fd999b30cbbb.litecache.php');
+                                   . '09'
+                                   . DIRECTORY_SEPARATOR
+                                   . '098f6bcd4621d373cade4e832627b4f6.litecache.php'); // "test".
     }
 
     /**
@@ -435,23 +471,38 @@ class LiteCacheTest extends TestCase
         $this->assertTrue($cache->clear());
     }
 
-    /**
-     * @dataProvider configProvider
-     */
-    public function testClearClearsAllCacheFiles(array $config)
+    public function testClearClearsAllCacheFiles()
     {
-        $cache = $this->create($config);
+        $cache = $this->create();
 
         $cache->set('aaa', 1234);
         $cache->set('bbb', 'test');
         $cache->set('ccc', 3.1415);
 
         $this->assertNotEmpty($this->tree()
-                              ['root']['.litecache']);
-        $cache->clear();
+                              ['root']['.litecache']['af2bc12271d88af325dd44d9029b197d']);
+
+        $this->assertTrue($cache->clear());
 
         $this->assertEmpty($this->tree()
-                           ['root']['.litecache']);
+                           ['root']['.litecache']['af2bc12271d88af325dd44d9029b197d']);
+    }
+
+    public function testClearClearsAllSubdivisionCacheFiles()
+    {
+        $cache = $this->create(['subdivision' => true]);
+
+        $cache->set('aaa', 1234);
+        $cache->set('bbb', 'test');
+        $cache->set('ccc', 3.1415);
+
+        $this->assertNotEmpty($this->tree()
+                              ['root']['.litecache']['af2bc12271d88af325dd44d9029b197d']);
+
+        $this->assertTrue($cache->clear());
+
+        $this->assertEmpty($this->tree()
+                           ['root']['.litecache']['af2bc12271d88af325dd44d9029b197d']);
     }
 
     /**
@@ -576,12 +627,9 @@ class LiteCacheTest extends TestCase
         $cache->setMultiple($invalidKeys);
     }
 
-    /**
-     * @dataProvider configProvider
-     */
-    public function testSetMultipleCreatesCacheFiles(array $config)
+    public function testSetMultipleCreatesCacheFiles()
     {
-        $cache = $this->create($config);
+        $cache = $this->create();
 
         $cache->setMultiple([
                                 'test-1' => 1234,
@@ -591,15 +639,56 @@ class LiteCacheTest extends TestCase
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . 'f425e4c8be7aa01ce1c5fa66bf952063.litecache.php');
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php'); // "test-1".
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . 'b649716a3762d4c08c9d28c81d49c4e6.litecache.php');
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php'); // "test-2".
 
         $this->assertFileExists($cache->getCacheDirectory()
                                 . DIRECTORY_SEPARATOR
-                                . 'b3854bb80182bcf8d75b7f5bb9010fab.litecache.php');
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php'); // "test-3".
+    }
+
+    public function testSetMultipleCreatesSubdivisionCacheFiles()
+    {
+        $cache = $this->create(['subdivision' => true]);
+
+        $cache->setMultiple([
+                                'test-1' => 1234,
+                                'test-2' => 'test',
+                                'test-3' => [10, 20, 30, 40, 50]
+                            ]);
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '70'
+                                . DIRECTORY_SEPARATOR
+                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php'); // "test-1".
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '28'
+                                . DIRECTORY_SEPARATOR
+                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php'); // "test-2".
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '2b'
+                                . DIRECTORY_SEPARATOR
+                                . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php'); // "test-3".
     }
 
     /**
@@ -619,33 +708,88 @@ class LiteCacheTest extends TestCase
             ]));
     }
 
-    /**
-     * @dataProvider configProvider
-     */
-    public function testDeleteMultipleActuallyDeletesCacheFile(array $config)
+    public function testDeleteMultipleActuallyDeletesCacheFiles()
     {
-        $cache = $this->create($config);
+        $cache = $this->create();
 
         $objects = [
             'test-1' => 1234,
             'test-2' => 'test',
-            'test-3' => [10, 20, 30, 40, 50]
         ];
 
         $cache->setMultiple($objects);
-        $cache->deleteMultiple(array_keys($objects));
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+
+        $this->assertTrue($cache->deleteMultiple(array_keys($objects)));
 
         $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
                                    . DIRECTORY_SEPARATOR
                                    . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
 
         $this->assertFileNotExists($cache->getCacheDirectory()
                                    . DIRECTORY_SEPARATOR
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                   . DIRECTORY_SEPARATOR
                                    . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+    }
+
+    public function testDeleteMultipleActuallyDeletesSubdivisionCacheFiles()
+    {
+        $cache = $this->create(['subdivision' => true]);
+
+        $objects = [
+            'test-1' => 1234,
+            'test-2' => 'test',
+        ];
+
+        $cache->setMultiple($objects);
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '70'
+                                . DIRECTORY_SEPARATOR
+                                . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+
+        $this->assertFileExists($cache->getCacheDirectory()
+                                . DIRECTORY_SEPARATOR
+                                . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                . DIRECTORY_SEPARATOR
+                                . '28'
+                                . DIRECTORY_SEPARATOR
+                                . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
+
+        $this->assertTrue($cache->deleteMultiple(array_keys($objects)));
 
         $this->assertFileNotExists($cache->getCacheDirectory()
                                    . DIRECTORY_SEPARATOR
-                                   . '2b61ddda48445374b35a927b6ae2cd6d.litecache.php');
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                   . DIRECTORY_SEPARATOR
+                                   . '70'
+                                   . DIRECTORY_SEPARATOR
+                                   . '70a37754eb5a2e7db8cd887aaf11cda7.litecache.php');
+
+        $this->assertFileNotExists($cache->getCacheDirectory()
+                                   . DIRECTORY_SEPARATOR
+                                   . 'af2bc12271d88af325dd44d9029b197d' // "test-pool".
+                                   . DIRECTORY_SEPARATOR
+                                   . '28'
+                                   . DIRECTORY_SEPARATOR
+                                   . '282ff2cb3d9dadeb831bb3ba0128f2f4.litecache.php');
     }
 
     /**

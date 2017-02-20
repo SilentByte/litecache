@@ -2,6 +2,15 @@
 Change Log
 ==========
 
+## 2.1.1 (2017-02-20)
+Version 2.1.1 fixes several issues.
+
+### Fixed
+- `delete()` and `clear()` now correctly respect the current pool.
+- `clear()` now works correctly with option `subdivision` enabled.
+
+
+
 ## 2.1 (2017-02-19)
 Version 2.1 is a small update adding the 'subdivision' feature.
 
@@ -11,6 +20,7 @@ Version 2.1 is a small update adding the 'subdivision' feature.
 ### Fixed
 - Keys are now properly validated according to PSR-16.
 - General improvements and fixes in code base and tests.
+
 
 
 ## 2.0 (2017-01-26)
@@ -35,7 +45,6 @@ Version 2.0 implements major improvements in terms of the API, error handling, e
 - `JsonProducer` class for dealing with `*.json` files.
 - `CacheArgumentException` class for cache related issues with arguments.
 - `CacheProducerException` class for exceptions occurring in producers.
-
 
 ### Changed
 - Renamed option `expiration` to `ttl`.
