@@ -186,6 +186,11 @@ class LiteCacheTest extends TestCase
         $this->assertEquals(10, $cache->getDefaultTimeToLive());
     }
 
+    public function testConstructorAcceptsPoolName0()
+    {
+        $this->create(['pool' => '0']);
+    }
+
     /**
      * @expectedException \Psr\SimpleCache\InvalidArgumentException
      */

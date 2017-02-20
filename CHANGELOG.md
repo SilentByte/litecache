@@ -11,7 +11,7 @@ Version 2.1.1 fixes several issues.
 ### Fixed
 - `delete()` and `clear()` now correctly respect the current pool.
 - `clear()` now works correctly with option `subdivision` enabled.
-- String `"0"` can now be used as a key name.
+- String `"0"` can now be used as the name for keys and pools.
 
 
 
