@@ -313,11 +313,11 @@ class LiteCache implements CacheInterface
     private function ensureKeyValidity($key)
     {
         if (!is_string($key)
-            || empty($key)
+            || strlen($key) === 0
             || preg_match('~[{}()/\\\\@:]~', $key) === 1
         ) {
-            $this->logger->error('Key {key} is invalid.', ['key' => $key]);
-            throw new CacheArgumentException('Key must be a non-empty string and must not contain \'{}()/\\@:\'.');
+            $this->logger->error('Key \'{key}\' is invalid.', ['key' => $key]);
+            throw new CacheArgumentException("Key '{$key}' must be a non-empty string and must not contain '{}()/\\@:'.");
         }
     }
 
@@ -803,7 +803,7 @@ class LiteCache implements CacheInterface
 
         $objects = [];
         foreach ($keys as $key) {
-            $objects[$key] = $this->get($key, $default);
+            $objects[$key] = $this->get((string)$key, $default);
         }
 
         return $objects;
@@ -829,6 +829,10 @@ class LiteCache implements CacheInterface
         $this->ensureArrayOrTraversable($values);
 
         foreach ($values as $key => $value) {
+            if (is_int($key)) {
+                $key = (string)$key;
+            }
+            
             if (!$this->set($key, $value, $ttl)) {
                 return false;
             }

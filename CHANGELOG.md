@@ -5,9 +5,13 @@ Change Log
 ## 2.1.1 (2017-02-20)
 Version 2.1.1 fixes several issues.
 
+### Changed
+- `setMultiple()` and `getMultiple()` now consider integers valid keys. PHP automatically coerces integral string keys to integers (see [PHP Manual](http://php.net/manual/en/language.types.array.php)), making it impossible to distinguish between the two types due to loss of type information.
+
 ### Fixed
 - `delete()` and `clear()` now correctly respect the current pool.
 - `clear()` now works correctly with option `subdivision` enabled.
+- String `"0"` can now be used as a key name.
 
 
 

@@ -41,10 +41,11 @@ class LiteCacheTest extends TestCase
 
     public function invalidKeyProvider()
     {
+        // Integers are considered valid keys due to PHP's quirk where integral string
+        // hash map keys are coerced to integers (see http://php.net/manual/en/language.types.array.php).
         $invalidKeys = [
             null,
             '',
-            1234,
             3.14,
             'foo{bar',
             'foo}bar',
@@ -85,7 +86,8 @@ class LiteCacheTest extends TestCase
                 'array' => [10, 20, 30, 40, 50]
             ]],
             ['key-object', $object],
-            ['key-array-object', [$object, $object, $object]]
+            ['key-array-object', [$object, $object, $object]],
+            ['0', 0]
         ];
 
         $permutations = [];
@@ -119,7 +121,8 @@ class LiteCacheTest extends TestCase
                 'array' => [10, 20, 30, 40, 50]
             ],
             'key-object'        => $object,
-            'key-array-object'  => [$object, $object, $object]
+            'key-array-object'  => [$object, $object, $object],
+            '0'                 => 0
         ];
 
         $permutations = [];
@@ -621,7 +624,7 @@ class LiteCacheTest extends TestCase
 
         $invalidKeys = [];
         foreach ($this->invalidKeyProvider() as $entry) {
-            $invalidKeys[] = $entry[0];
+            $invalidKeys[$entry[0]] = 'test';
         }
 
         $cache->setMultiple($invalidKeys);
