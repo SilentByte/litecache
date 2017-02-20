@@ -295,7 +295,7 @@ class LiteCache implements CacheInterface
      */
     private function ensureCacheDirectoryValidity($directory)
     {
-        if (empty($directory)) {
+        if (!is_string($directory) || strlen($directory) === 0) {
             $this->logger->error('Directory {directory} is invalid.', ['directory' => $directory]);
             throw new CacheArgumentException('The cache directory is invalid.');
         }

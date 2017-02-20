@@ -170,25 +170,26 @@ class LiteCacheTest extends TestCase
     public function testConstructorAcceptsDateInterval()
     {
         $interval = DateInterval::createFromDateString('10 seconds');
-        $cache = $this->create([
-                                   'ttl' => $interval
-                               ]);
 
+        $cache = $this->create(['ttl' => $interval]);
         $this->assertEquals(10, $cache->getDefaultTimeToLive());
     }
 
     public function testConstructorAcceptsDateIntervalString()
     {
-        $cache = $this->create([
-                                   'ttl' => '10 seconds'
-                               ]);
-
+        $cache = $this->create(['ttl' => '10 seconds']);
         $this->assertEquals(10, $cache->getDefaultTimeToLive());
     }
 
     public function testConstructorAcceptsPoolName0()
     {
         $this->create(['pool' => '0']);
+    }
+
+    public function testConstructorAcceptsCacheDirectory0()
+    {
+        $cache = $this->create(['directory' => '0']);
+        $this->assertEquals('0', $cache->getCacheDirectory());
     }
 
     /**
