@@ -247,8 +247,8 @@ class LiteCache implements CacheInterface
     private function ensurePoolNameValidity($pool)
     {
         if (!is_string($pool) || strlen($pool) === 0) {
-            $this->logger->error('Pool name {pool} is invalid.', ['pool' => $pool]);
-            throw new CacheArgumentException('Pool name must not be null or empty');
+            $this->logger->error('Pool name \'{pool}\' is invalid.', ['pool' => $pool]);
+            throw new CacheArgumentException("Pool name '{$pool}' must not be null or empty.");
         }
     }
 
@@ -280,8 +280,8 @@ class LiteCache implements CacheInterface
             return;
         }
 
-        $this->logger->error('TTL {ttl} is invalid.', ['ttl' => $ttl]);
-        throw new CacheArgumentException('Time to live is invalid.');
+        $this->logger->error('TTL \'{ttl}\' is invalid.', ['ttl' => $ttl]);
+        throw new CacheArgumentException("Time to live '{$ttl}' is invalid.");
     }
 
     /**
@@ -296,8 +296,8 @@ class LiteCache implements CacheInterface
     private function ensureCacheDirectoryValidity($directory)
     {
         if (!is_string($directory) || strlen($directory) === 0) {
-            $this->logger->error('Directory {directory} is invalid.', ['directory' => $directory]);
-            throw new CacheArgumentException('The cache directory is invalid.');
+            $this->logger->error('Cache directory \'{directory}\' is invalid.', ['directory' => $directory]);
+            throw new CacheArgumentException("Cache directory '{$directory}' is invalid.");
         }
     }
 
@@ -316,7 +316,9 @@ class LiteCache implements CacheInterface
             || strlen($key) === 0
             || preg_match('~[{}()/\\\\@:]~', $key) === 1
         ) {
-            $this->logger->error('Key \'{key}\' is invalid.', ['key' => $key]);
+            $this->logger->error('Key \'{key}\' must be a non-empty string and must not contain \'{}()/\\@:\'.',
+                                 ['key' => $key]);
+
             throw new CacheArgumentException("Key '{$key}' must be a non-empty string and must not contain '{}()/\\@:'.");
         }
     }
@@ -333,8 +335,10 @@ class LiteCache implements CacheInterface
     private function ensureArrayOrTraversable($argument)
     {
         if (!is_array($argument) && !$argument instanceof Traversable) {
-            $this->logger->error('Argument is neither an array nor a Traversable');
-            throw new CacheArgumentException('Argument is neither an array nor a Traversable.');
+            $message = 'Argument is neither an array nor a Traversable';
+
+            $this->logger->error($message);
+            throw new CacheArgumentException($message);
         }
     }
 
@@ -740,7 +744,7 @@ class LiteCache implements CacheInterface
                 // the new value and subsequently cache it.
                 $object = $producer();
             } catch (Throwable $t) {
-                $this->logger->error('Producer for {key} has thrown an exception.', ['key' => $key]);
+                $this->logger->error('Producer for \'{key}\' has thrown an exception.', ['key' => $key]);
                 throw new CacheProducerException($t);
             }
 
